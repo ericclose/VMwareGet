@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/download_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/diagnostic_service.dart';
+import '../services/folder_picker_service.dart';
 import '../utils/constants.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/diagnostic_dialog.dart';
@@ -17,6 +20,7 @@ class SettingsView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final auth = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final downloadProvider = Provider.of<DownloadProvider>(context);
     final session = auth.currentSession;
 
     return SingleChildScrollView(
@@ -137,6 +141,146 @@ class SettingsView extends StatelessWidget {
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Download Storage & Directory Section
+            Text(
+              'Download Storage & Directory (下载目录配置)',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.folder_special_rounded,
+                            size: 22,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Download Destination Directory',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Installer packages and disk images will be saved here',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 18,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SelectableText(
+                              downloadProvider.downloadDirectory ??
+                                  downloadProvider.defaultSystemDownloadDir,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        FilledButton.tonalIcon(
+                          icon: const Icon(Icons.edit_location_alt_rounded, size: 16),
+                          label: const Text('Change Directory (更改路径)'),
+                          onPressed: () async {
+                            final chosen = await FolderPickerService.pickDirectory(
+                              prompt: 'Select VMware Downloads Folder',
+                              initialDirectory: downloadProvider.downloadDirectory,
+                            );
+                            if (chosen != null && chosen.isNotEmpty) {
+                              await downloadProvider.setDownloadDirectory(chosen);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Download directory updated to: $chosen'),
+                                    backgroundColor: colorScheme.primary,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.folder_open_rounded, size: 16),
+                          label: Text(
+                            Platform.isMacOS
+                                ? 'Open in Finder (打开目录)'
+                                : 'Open Directory (打开目录)',
+                          ),
+                          onPressed: () => downloadProvider.openDownloadDirectory(),
+                        ),
+                        if (downloadProvider.downloadDirectory !=
+                            downloadProvider.defaultSystemDownloadDir)
+                          TextButton.icon(
+                            icon: const Icon(Icons.restore_rounded, size: 16),
+                            label: const Text('Reset to System Default (恢复系统默认)'),
+                            onPressed: () async {
+                              await downloadProvider.resetToDefaultDownloadDirectory();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Reset to system default Downloads folder'),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                       ],
                     ),
                   ],

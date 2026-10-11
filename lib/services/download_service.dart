@@ -39,12 +39,20 @@ class DownloadService {
       }
     } catch (_) {}
 
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final fallbackDir = Directory(p.join(appDocDir.path, 'VMwareGet'));
-    if (!await fallbackDir.exists()) {
-      await fallbackDir.create(recursive: true);
+    try {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final fallbackDir = Directory(p.join(appDocDir.path, 'VMwareGet'));
+      if (!await fallbackDir.exists()) {
+        await fallbackDir.create(recursive: true);
+      }
+      return fallbackDir.path;
+    } catch (_) {}
+
+    final tempFallback = Directory(p.join(Directory.systemTemp.path, 'VMwareGet'));
+    if (!await tempFallback.exists()) {
+      await tempFallback.create(recursive: true);
     }
-    return fallbackDir.path;
+    return tempFallback.path;
   }
 
   Future<String?> generateAuthorizedDownloadUrl({
@@ -267,19 +275,25 @@ class DownloadService {
   }
 
   Future<void> openContainingFolder(String filePath) async {
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-R', filePath]);
+        return;
+      } else if (Platform.isWindows) {
+        await Process.run('explorer.exe', ['/select,', filePath]);
+        return;
+      } else if (Platform.isLinux) {
+        final directoryPath = File(filePath).parent.path;
+        await Process.run('xdg-open', [directoryPath]);
+        return;
+      }
+    } catch (_) {}
+
     final file = File(filePath);
     final directoryPath = file.parent.path;
     final uri = Uri.directory(directoryPath);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    } else {
-      if (Platform.isMacOS) {
-        await Process.run('open', ['-R', filePath]);
-      } else if (Platform.isWindows) {
-        await Process.run('explorer.exe', ['/select,', filePath]);
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [directoryPath]);
-      }
     }
   }
 

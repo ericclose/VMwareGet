@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/download_item.dart';
@@ -255,7 +256,11 @@ class DownloadProgressTile extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.folder_open_rounded, size: 16),
-                    label: const Text('Show in Folder'),
+                    label: Text(
+                      Platform.isMacOS
+                          ? 'Show in Finder (定位文件)'
+                          : 'Show in Folder (定位文件)',
+                    ),
                     onPressed: () =>
                         downloadProvider.openContainingFolder(item.id),
                   ),

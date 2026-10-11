@@ -12,6 +12,8 @@ class DownloadProvider extends ChangeNotifier {
   final DownloadService _downloadService = DownloadService();
   final Map<String, DownloadItem> _items = {};
   String? _customDownloadDir;
+  bool _isDownloadDirConfirmed = false;
+  String _defaultSystemDownloadDir = '';
 
   DownloadProvider() {
     _initDirectory();
@@ -30,24 +32,65 @@ class DownloadProvider extends ChangeNotifier {
   int get activeCount => activeDownloads.length;
 
   String? get downloadDirectory => _customDownloadDir;
+  bool get isDownloadDirConfirmed => _isDownloadDirConfirmed;
+  String get defaultSystemDownloadDir => _defaultSystemDownloadDir;
 
   Future<void> _initDirectory() async {
     final prefs = await SharedPreferences.getInstance();
+    _defaultSystemDownloadDir =
+        await _downloadService.getDefaultDownloadDirectory();
     final savedDir = prefs.getString(AppConstants.storageKeyDownloadDir);
     if (savedDir != null && savedDir.isNotEmpty) {
       _customDownloadDir = savedDir;
+      _isDownloadDirConfirmed = true;
     } else {
-      _customDownloadDir =
-          await _downloadService.getDefaultDownloadDirectory();
+      _customDownloadDir = _defaultSystemDownloadDir;
+      _isDownloadDirConfirmed =
+          prefs.getBool('vmwareget_download_dir_confirmed') ?? false;
     }
     notifyListeners();
   }
 
   Future<void> setDownloadDirectory(String directoryPath) async {
     _customDownloadDir = directoryPath;
+    _isDownloadDirConfirmed = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.storageKeyDownloadDir, directoryPath);
+    await prefs.setBool('vmwareget_download_dir_confirmed', true);
     notifyListeners();
+  }
+
+  Future<void> confirmDownloadDirectory(String directoryPath) async {
+    await setDownloadDirectory(directoryPath);
+  }
+
+  Future<void> resetToDefaultDownloadDirectory() async {
+    _customDownloadDir = _defaultSystemDownloadDir;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.storageKeyDownloadDir);
+    notifyListeners();
+  }
+
+  Future<void> openDownloadDirectory() async {
+    final dir = _customDownloadDir ?? _defaultSystemDownloadDir;
+    if (dir.isNotEmpty) {
+      final directory = Directory(dir);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      try {
+        if (Platform.isMacOS) {
+          await Process.run('open', [dir]);
+          return;
+        } else if (Platform.isWindows) {
+          await Process.run('explorer.exe', [dir]);
+          return;
+        } else if (Platform.isLinux) {
+          await Process.run('xdg-open', [dir]);
+          return;
+        }
+      } catch (_) {}
+    }
   }
 
   DownloadItem? getItemForRelease(String releaseId) {

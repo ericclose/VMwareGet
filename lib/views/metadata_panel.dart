@@ -7,6 +7,7 @@ import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
 import '../widgets/checksum_badge.dart';
+import '../widgets/download_dir_dialog.dart';
 
 class MetadataPanel extends StatelessWidget {
   final VMwareReleaseItem? release;
@@ -134,7 +135,9 @@ class MetadataPanel extends StatelessWidget {
                 'Download Installer Package',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
-              onPressed: () {
+              onPressed: () async {
+                final confirmed = await DownloadDirDialog.showIfNeeded(context);
+                if (!confirmed) return;
                 downloadProvider.startDownload(
                   release: item,
                   session: authSession,
@@ -192,6 +195,18 @@ class MetadataPanel extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (downloadItem.status == DownloadStatus.completed) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.folder_open_rounded, size: 16),
+                      label: const Text('Show in Finder (定位文件)'),
+                      onPressed: () =>
+                          downloadProvider.openContainingFolder(downloadItem.id),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   FilledButton.tonal(
                     onPressed: onNavigateToDownloads,
                     child: const Text('View Manager'),

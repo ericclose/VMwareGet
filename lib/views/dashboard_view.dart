@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../providers/download_provider.dart';
@@ -36,6 +37,7 @@ class _DashboardViewState extends State<DashboardView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final downloadProvider = Provider.of<DownloadProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
@@ -55,10 +57,10 @@ class _DashboardViewState extends State<DashboardView> {
         ];
 
         final destinationList = [
-          const NavigationDestination(
-            icon: Icon(Icons.apps_outlined),
-            selectedIcon: Icon(Icons.apps_rounded),
-            label: 'Catalog',
+          NavigationDestination(
+            icon: const Icon(Icons.apps_outlined),
+            selectedIcon: const Icon(Icons.apps_rounded),
+            label: l10n.catalog,
           ),
           NavigationDestination(
             icon: downloadProvider.activeCount > 0
@@ -73,20 +75,20 @@ class _DashboardViewState extends State<DashboardView> {
                     child: const Icon(Icons.download_rounded),
                   )
                 : const Icon(Icons.download_rounded),
-            label: 'Downloads',
+            label: l10n.downloads,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings_rounded),
+            label: l10n.settings,
           ),
         ];
 
         final railDestinations = [
-          const NavigationRailDestination(
-            icon: Icon(Icons.apps_outlined),
-            selectedIcon: Icon(Icons.apps_rounded),
-            label: Text('Catalog'),
+          NavigationRailDestination(
+            icon: const Icon(Icons.apps_outlined),
+            selectedIcon: const Icon(Icons.apps_rounded),
+            label: Text(l10n.catalog),
           ),
           NavigationRailDestination(
             icon: downloadProvider.activeCount > 0
@@ -101,12 +103,12 @@ class _DashboardViewState extends State<DashboardView> {
                     child: const Icon(Icons.download_rounded),
                   )
                 : const Icon(Icons.download_rounded),
-            label: const Text('Downloads'),
+            label: Text(l10n.downloads),
           ),
-          const NavigationRailDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: Text('Settings'),
+          NavigationRailDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings_rounded),
+            label: Text(l10n.settings),
           ),
         ];
 
@@ -176,21 +178,21 @@ class _DashboardViewState extends State<DashboardView> {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text('Sign Out / 注销登录'),
+                          title: Text(l10n.signOut),
                           content: const Text(
                             'Are you sure you want to sign out? Your cached Broadcom session and access tokens will be cleared.',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('Cancel'),
+                              child: Text(l10n.cancel),
                             ),
                             FilledButton(
                               style: FilledButton.styleFrom(
                                 backgroundColor: Theme.of(ctx).colorScheme.error,
                               ),
                               onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Sign Out'),
+                              child: Text(l10n.signOut),
                             ),
                           ],
                         ),
@@ -227,13 +229,13 @@ class _DashboardViewState extends State<DashboardView> {
                       ),
                     ),
                     const PopupMenuDivider(),
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'settings',
                       child: Row(
                         children: [
-                          Icon(Icons.manage_accounts_rounded, size: 18),
-                          SizedBox(width: 10),
-                          Text('Session Details (会话详情)'),
+                          const Icon(Icons.manage_accounts_rounded, size: 18),
+                          const SizedBox(width: 10),
+                          Text(l10n.sessionDetails),
                         ],
                       ),
                     ),
@@ -244,7 +246,7 @@ class _DashboardViewState extends State<DashboardView> {
                           Icon(Icons.logout_rounded, size: 18, color: colorScheme.error),
                           const SizedBox(width: 10),
                           Text(
-                            'Sign Out (注销登录)',
+                            l10n.signOut,
                             style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -258,7 +260,7 @@ class _DashboardViewState extends State<DashboardView> {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.login_rounded, size: 16),
-                  label: const Text('Sign In (登录)'),
+                  label: Text(l10n.signIn),
                   onPressed: () => showDialog(
                     context: context,
                     builder: (_) => const LoginDialog(),

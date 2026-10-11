@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
+import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/diagnostic_service.dart';
 import '../services/folder_picker_service.dart';
@@ -18,8 +20,10 @@ class SettingsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final auth = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
     final downloadProvider = Provider.of<DownloadProvider>(context);
     final session = auth.currentSession;
 
@@ -31,7 +35,7 @@ class SettingsView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Settings & Account',
+              l10n.settingsAndAccount,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -40,7 +44,7 @@ class SettingsView extends StatelessWidget {
 
             // Account & Session Section
             Text(
-              'Broadcom Session',
+              l10n.broadcomSession,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -88,7 +92,7 @@ class SettingsView extends StatelessWidget {
                             foregroundColor: colorScheme.error,
                           ),
                           onPressed: () => auth.logout(),
-                          child: const Text('Sign Out'),
+                          child: Text(l10n.signOut),
                         ),
                       ],
                     ),
@@ -104,14 +108,14 @@ class SettingsView extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Export Compliance Screening:',
+                          l10n.exportComplianceScreening,
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Approved (Global Free License Access)',
+                          l10n.complianceApproved,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.green.shade800,
                             fontWeight: FontWeight.bold,
@@ -129,14 +133,14 @@ class SettingsView extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Session Persistence:',
+                          l10n.sessionPersistence,
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Encrypted Storage Active',
+                          l10n.encryptedStorageActive,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -151,7 +155,7 @@ class SettingsView extends StatelessWidget {
 
             // Download Storage & Directory Section
             Text(
-              'Download Storage & Directory (下载目录配置)',
+              l10n.downloadStorageSection,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -183,13 +187,13 @@ class SettingsView extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Download Destination Directory',
+                                l10n.downloadDestinationDir,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                'Installer packages and disk images will be saved here',
+                                l10n.downloadDirSubtitle,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -237,7 +241,7 @@ class SettingsView extends StatelessWidget {
                       children: [
                         FilledButton.tonalIcon(
                           icon: const Icon(Icons.edit_location_alt_rounded, size: 16),
-                          label: const Text('Change Directory (更改路径)'),
+                          label: Text(l10n.changeDirectory),
                           onPressed: () async {
                             final chosen = await FolderPickerService.pickDirectory(
                               prompt: 'Select VMware Downloads Folder',
@@ -260,8 +264,8 @@ class SettingsView extends StatelessWidget {
                           icon: const Icon(Icons.folder_open_rounded, size: 16),
                           label: Text(
                             Platform.isMacOS
-                                ? 'Open in Finder (打开目录)'
-                                : 'Open Directory (打开目录)',
+                                ? l10n.showInFinder
+                                : l10n.openInFinderOrExplorer,
                           ),
                           onPressed: () => downloadProvider.openDownloadDirectory(),
                         ),
@@ -269,7 +273,7 @@ class SettingsView extends StatelessWidget {
                             downloadProvider.defaultSystemDownloadDir)
                           TextButton.icon(
                             icon: const Icon(Icons.restore_rounded, size: 16),
-                            label: const Text('Reset to System Default (恢复系统默认)'),
+                            label: Text(l10n.resetToDefault),
                             onPressed: () async {
                               await downloadProvider.resetToDefaultDownloadDirectory();
                               if (context.mounted) {
@@ -308,13 +312,13 @@ class SettingsView extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Native Range Multi-threading (并发下载线程数)',
+                                l10n.multiThreadingSection,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                'Concurrent HTTP Range connections for accelerated throughput',
+                                l10n.multiThreadingSubtitle,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -329,7 +333,7 @@ class SettingsView extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '${downloadProvider.downloadThreads} Threads',
+                            '${downloadProvider.downloadThreads} ${l10n.threadsLabel}',
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: colorScheme.onPrimaryContainer,
                               fontWeight: FontWeight.bold,
@@ -349,7 +353,7 @@ class SettingsView extends StatelessWidget {
                         min: AppConstants.minDownloadThreads.toDouble(),
                         max: AppConstants.maxDownloadThreads.toDouble(),
                         divisions: AppConstants.maxDownloadThreads - AppConstants.minDownloadThreads,
-                        label: '${downloadProvider.downloadThreads} Threads',
+                        label: '${downloadProvider.downloadThreads} ${l10n.threadsLabel}',
                         onChanged: (val) {
                           downloadProvider.setDownloadThreads(val.round());
                         },
@@ -359,19 +363,19 @@ class SettingsView extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '1 (Single)',
+                          l10n.threadsSingle,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
                         ),
                         Text(
-                          '16 (Default)',
+                          l10n.threadsDefault,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
                         ),
                         Text(
-                          '64 (Max Turbo)',
+                          l10n.threadsMax,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
@@ -384,8 +388,14 @@ class SettingsView extends StatelessWidget {
                       runSpacing: 8,
                       children: [4, 8, 16, 32, 64].map((threads) {
                         final isSelected = downloadProvider.downloadThreads == threads;
+                        String suffix = '';
+                        if (threads == 16) {
+                          suffix = ' (${l10n.defaultLabel})';
+                        } else if (threads == 64) {
+                          suffix = ' (${l10n.maxLabel})';
+                        }
                         return ChoiceChip(
-                          label: Text('$threads 线程${threads == 16 ? " (默认)" : (threads == 64 ? " (最大)" : "")}'),
+                          label: Text('$threads ${l10n.threadsLabel}$suffix'),
                           selected: isSelected,
                           onSelected: (_) {
                             downloadProvider.setDownloadThreads(threads);
@@ -395,7 +405,7 @@ class SettingsView extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '💡 原生 Dart Range 并发切片下载，无需重型外部进程依赖，自动分段定点写入，设置自动持久化生效。',
+                      l10n.multiThreadingHint,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                         fontSize: 11,
@@ -409,7 +419,7 @@ class SettingsView extends StatelessWidget {
 
             // Diagnostics Section
             Text(
-              'Technical Diagnostics & Live Logs',
+              l10n.technicalDiagnosticsSection,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -441,13 +451,13 @@ class SettingsView extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Full-Pipeline Troubleshooting Logs',
+                                l10n.diagnosticLogsTitle,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                'Capture & inspect SSO cookies, CSRF tokens, and Broadcom REST endpoints',
+                                l10n.diagnosticSubtitle,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -462,19 +472,19 @@ class SettingsView extends StatelessWidget {
                       children: [
                         FilledButton.tonalIcon(
                           icon: const Icon(Icons.analytics_outlined, size: 16),
-                          label: const Text('View Diagnostic Logs (查看诊断)'),
+                          label: Text(l10n.viewDiagnosticLogs),
                           onPressed: () => DiagnosticDialog.show(context),
                         ),
                         const SizedBox(width: 10),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.copy_rounded, size: 16),
-                          label: const Text('Copy All Logs (一键复制)'),
+                          label: Text(l10n.copyAllLogs),
                           onPressed: () {
                             final text = DiagnosticService.instance.exportFormattedLogs();
                             Clipboard.setData(ClipboardData(text: text));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text('Diagnostic report copied to clipboard!'),
+                                content: Text(l10n.diagnosticCopied),
                                 backgroundColor: Theme.of(context).colorScheme.primary,
                               ),
                             );
@@ -488,9 +498,9 @@ class SettingsView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Appearance Section
+            // Language Section
             Text(
-              'Appearance & Theme',
+              l10n.languageSection,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -503,28 +513,75 @@ class SettingsView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Material Design 3 Theme Mode',
+                      l10n.displayLanguage,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<String>(
+                      segments: [
+                        ButtonSegment(
+                          value: 'en',
+                          icon: const Icon(Icons.language_rounded),
+                          label: Text(l10n.langEnglish),
+                        ),
+                        ButtonSegment(
+                          value: 'zh',
+                          icon: const Icon(Icons.translate_rounded),
+                          label: Text(l10n.langChinese),
+                        ),
+                      ],
+                      selected: {localeProvider.locale.languageCode},
+                      onSelectionChanged: (set) {
+                        if (set.isNotEmpty) {
+                          localeProvider.setLocale(Locale(set.first));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Appearance Section
+            Text(
+              l10n.appearanceSection,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.materialThemeMode,
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 12),
                     SegmentedButton<ThemeMode>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: ThemeMode.system,
-                          icon: Icon(Icons.brightness_auto_rounded),
-                          label: Text('System'),
+                          icon: const Icon(Icons.brightness_auto_rounded),
+                          label: Text(l10n.themeModeSystem),
                         ),
                         ButtonSegment(
                           value: ThemeMode.light,
-                          icon: Icon(Icons.light_mode_rounded),
-                          label: Text('Light'),
+                          icon: const Icon(Icons.light_mode_rounded),
+                          label: Text(l10n.themeModeLight),
                         ),
                         ButtonSegment(
                           value: ThemeMode.dark,
-                          icon: Icon(Icons.dark_mode_rounded),
-                          label: Text('Dark'),
+                          icon: const Icon(Icons.dark_mode_rounded),
+                          label: Text(l10n.themeModeDark),
                         ),
                       ],
                       selected: {themeProvider.themeMode},
@@ -542,7 +599,7 @@ class SettingsView extends StatelessWidget {
 
             // Application Information
             Text(
-              'Application Information',
+              l10n.appInformationSection,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

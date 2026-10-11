@@ -30,15 +30,52 @@ class DownloadService {
 
   Future<String> getDefaultDownloadDirectory() async {
     try {
-      if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-        final dir = await getDownloadsDirectory();
-        if (dir != null) {
-          final vmDir = Directory(p.join(dir.path, 'VMwareGet'));
-          if (!await vmDir.exists()) {
-            await vmDir.create(recursive: true);
+      if (Platform.isMacOS || Platform.isLinux) {
+        String? home = Platform.environment['HOME'];
+        if (home != null && home.isNotEmpty) {
+          if (home.contains('/Library/Containers/')) {
+            final match = RegExp(r'^(/Users/[^/]+)').firstMatch(home);
+            if (match != null) {
+              home = match.group(1);
+            }
           }
-          return vmDir.path;
+          final userDownloads = Directory(p.join(home!, 'Downloads'));
+          if (await userDownloads.exists()) {
+            final vmDir = Directory(p.join(userDownloads.path, 'VMwareGet'));
+            if (!await vmDir.exists()) {
+              await vmDir.create(recursive: true);
+            }
+            return vmDir.path;
+          }
         }
+      } else if (Platform.isWindows) {
+        final userProfile = Platform.environment['USERPROFILE'];
+        if (userProfile != null && userProfile.isNotEmpty) {
+          final winDownloads = Directory(p.join(userProfile, 'Downloads', 'VMwareGet'));
+          if (!await winDownloads.exists()) {
+            await winDownloads.create(recursive: true);
+          }
+          return winDownloads.path;
+        }
+      }
+
+      final dir = await getDownloadsDirectory();
+      if (dir != null) {
+        String realPath = dir.path;
+        try {
+          realPath = await dir.resolveSymbolicLinks();
+        } catch (_) {}
+        if (realPath.contains('/Library/Containers/')) {
+          final match = RegExp(r'^(/Users/[^/]+)').firstMatch(realPath);
+          if (match != null) {
+            realPath = p.join(match.group(1)!, 'Downloads');
+          }
+        }
+        final vmDir = Directory(p.join(realPath, 'VMwareGet'));
+        if (!await vmDir.exists()) {
+          await vmDir.create(recursive: true);
+        }
+        return vmDir.path;
       }
     } catch (_) {}
 

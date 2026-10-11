@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
@@ -34,6 +36,7 @@ class MetadataPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final downloadProvider = Provider.of<DownloadProvider>(context);
     final authSession =
         Provider.of<AuthProvider>(context, listen: false).currentSession;
@@ -201,7 +204,9 @@ class MetadataPanel extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                       ),
                       icon: const Icon(Icons.folder_open_rounded, size: 16),
-                      label: const Text('Show in Finder (定位文件)'),
+                      label: Text(
+                        Platform.isMacOS ? l10n.showInFinder : l10n.showInFolder,
+                      ),
                       onPressed: () =>
                           downloadProvider.openContainingFolder(downloadItem.id),
                     ),

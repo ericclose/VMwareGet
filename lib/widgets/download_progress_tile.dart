@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../models/download_item.dart';
 import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
@@ -17,6 +18,7 @@ class DownloadProgressTile extends StatelessWidget {
   Widget _buildStatusChip(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     Color bg;
     Color fg;
@@ -27,44 +29,44 @@ class DownloadProgressTile extends StatelessWidget {
       case DownloadStatus.downloading:
         bg = colorScheme.primaryContainer;
         fg = colorScheme.onPrimaryContainer;
-        label = 'Downloading';
+        label = l10n.statusDownloading;
         icon = Icons.downloading_rounded;
         break;
       case DownloadStatus.paused:
         bg = colorScheme.surfaceContainerHighest;
         fg = colorScheme.onSurfaceVariant;
-        label = 'Paused';
+        label = l10n.statusPaused;
         icon = Icons.pause_circle_outline_rounded;
         break;
       case DownloadStatus.verifying:
         bg = Colors.amber.withValues(alpha: 0.2);
         fg = Colors.amber.shade900;
-        label = 'Verifying Checksum';
+        label = l10n.statusVerifying;
         icon = Icons.security_rounded;
         break;
       case DownloadStatus.completed:
         if (item.verificationStatus == VerificationStatus.passed) {
           bg = Colors.green.withValues(alpha: 0.2);
           fg = Colors.green.shade800;
-          label = 'SHA256 & MD5 Verified';
+          label = l10n.statusPassed;
           icon = Icons.verified_rounded;
         } else if (item.verificationStatus ==
             VerificationStatus.failedMismatch) {
           bg = colorScheme.errorContainer;
           fg = colorScheme.onErrorContainer;
-          label = 'Checksum Mismatch';
+          label = l10n.statusMismatch;
           icon = Icons.gpp_bad_rounded;
         } else {
           bg = Colors.green.withValues(alpha: 0.2);
           fg = Colors.green.shade800;
-          label = 'Completed';
+          label = l10n.statusCompleted;
           icon = Icons.check_circle_rounded;
         }
         break;
       case DownloadStatus.failed:
         bg = colorScheme.errorContainer;
         fg = colorScheme.onErrorContainer;
-        label = 'Failed';
+        label = l10n.statusFailed;
         icon = Icons.error_outline_rounded;
         break;
       case DownloadStatus.queued:
@@ -108,6 +110,7 @@ class DownloadProgressTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final downloadProvider = Provider.of<DownloadProvider>(context, listen: false);
     final authSession = Provider.of<AuthProvider>(context, listen: false).currentSession;
 
@@ -257,9 +260,7 @@ class DownloadProgressTile extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.folder_open_rounded, size: 16),
                     label: Text(
-                      Platform.isMacOS
-                          ? 'Show in Finder (定位文件)'
-                          : 'Show in Folder (定位文件)',
+                      Platform.isMacOS ? l10n.showInFinder : l10n.showInFolder,
                     ),
                     onPressed: () =>
                         downloadProvider.openContainingFolder(item.id),
@@ -270,7 +271,7 @@ class DownloadProgressTile extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Re-verify Hash'),
+                    label: Text(l10n.reVerifyChecksum),
                     onPressed: () =>
                         downloadProvider.reVerifyChecksum(item.id),
                   ),
@@ -280,7 +281,7 @@ class DownloadProgressTile extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.launch_rounded, size: 16),
-                    label: const Text('Open Installer'),
+                    label: Text(l10n.openInstaller),
                     onPressed: () =>
                         downloadProvider.openDownloadedFile(item.id),
                   ),
@@ -290,7 +291,7 @@ class DownloadProgressTile extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.pause_rounded, size: 16),
-                    label: const Text('Pause'),
+                    label: Text(l10n.pause),
                     onPressed: () => downloadProvider.pauseDownload(item.id),
                   ),
                 ] else if (item.status == DownloadStatus.paused ||
@@ -300,7 +301,7 @@ class DownloadProgressTile extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                    label: const Text('Resume / Retry'),
+                    label: Text(l10n.resumeRetry),
                     onPressed: () => downloadProvider.resumeDownload(
                       id: item.id,
                       session: authSession,
@@ -310,7 +311,7 @@ class DownloadProgressTile extends StatelessWidget {
                 ],
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: 'Delete / Remove',
+                  tooltip: l10n.deleteRemove,
                   icon: const Icon(Icons.delete_outline_rounded, size: 18),
                   onPressed: () {
                     downloadProvider.deleteDownload(

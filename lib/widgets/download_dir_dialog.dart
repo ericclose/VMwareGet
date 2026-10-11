@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/download_provider.dart';
 import '../services/folder_picker_service.dart';
 
@@ -30,6 +31,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final downloadProvider = Provider.of<DownloadProvider>(context, listen: false);
     final defaultPath = downloadProvider.defaultSystemDownloadDir;
 
@@ -50,10 +52,10 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Set Download Directory\n设置下载保存目录',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              l10n.setDownloadDirTitle,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -65,7 +67,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Please choose where to save downloaded VMware installer packages. You can change this at any time in Settings.',
+              l10n.setDownloadDirSubtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -115,7 +117,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                             Row(
                               children: [
                                 Text(
-                                  'System Downloads (系统下载目录)',
+                                  l10n.systemDownloadsTitle,
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -214,14 +216,14 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Choose Custom Folder (自定义下载目录)',
+                              l10n.chooseCustomFolderTitle,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Select another local folder or external storage drive',
+                              l10n.chooseCustomFolderDesc,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                                 fontSize: 11,
@@ -253,7 +255,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel / 取消'),
+          child: Text(l10n.cancel),
         ),
       ],
     );

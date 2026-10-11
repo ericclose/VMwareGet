@@ -42,13 +42,19 @@ class DownloadProvider extends ChangeNotifier {
     _defaultSystemDownloadDir =
         await _downloadService.getDefaultDownloadDirectory();
     final savedDir = prefs.getString(AppConstants.storageKeyDownloadDir);
-    if (savedDir != null && savedDir.isNotEmpty) {
+    if (savedDir != null &&
+        savedDir.isNotEmpty &&
+        !savedDir.contains('/Library/Containers/')) {
       _customDownloadDir = savedDir;
       _isDownloadDirConfirmed = true;
     } else {
       _customDownloadDir = _defaultSystemDownloadDir;
       _isDownloadDirConfirmed =
           prefs.getBool('vmwareget_download_dir_confirmed') ?? false;
+      if (savedDir != null && savedDir.contains('/Library/Containers/')) {
+        await prefs.setString(
+            AppConstants.storageKeyDownloadDir, _defaultSystemDownloadDir);
+      }
     }
     _downloadThreads = prefs.getInt(AppConstants.storageKeyDownloadThreads) ??
         AppConstants.defaultDownloadThreads;

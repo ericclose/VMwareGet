@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 import '../services/diagnostic_service.dart';
 
 class DiagnosticDialog extends StatefulWidget {
@@ -122,12 +123,12 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                           visualDensity: VisualDensity.compact,
                         ),
                         icon: const Icon(Icons.copy_rounded, size: 16),
-                        label: const Text('Copy All Logs (单击复制)'),
+                        label: Text(AppLocalizations.of(context).copyAllLogs),
                         onPressed: allEntries.isEmpty ? null : _copyAllLogs,
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        tooltip: 'Close',
+                        tooltip: AppLocalizations.of(context).close,
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.of(context).pop(),
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
@@ -19,6 +20,7 @@ class CatalogView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final catalog = Provider.of<CatalogProvider>(context);
 
     return LayoutBuilder(
@@ -123,7 +125,7 @@ class CatalogView extends StatelessWidget {
                               : colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
-                        const Text('All Platforms (全部平台)'),
+                        Text(l10n.allPlatforms),
                       ],
                     ),
                   ),
@@ -269,6 +271,8 @@ class CatalogView extends StatelessWidget {
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
+    final l10n = AppLocalizations.of(context);
+
     if (catalog.isSyncing) {
       return Center(
         child: Column(
@@ -281,7 +285,7 @@ class CatalogView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Fetching releases live from Broadcom...',
+              l10n.fetchingReleases,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -333,7 +337,7 @@ class CatalogView extends StatelessWidget {
               children: [
                 FilledButton.icon(
                   icon: const Icon(Icons.sync_rounded, size: 18),
-                  label: const Text('Sync Online Catalog'),
+                  label: Text(l10n.syncOnlineCatalog),
                   onPressed: () {
                     final auth =
                         Provider.of<AuthProvider>(context, listen: false);
@@ -349,7 +353,7 @@ class CatalogView extends StatelessWidget {
                 ),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.vpn_key_rounded, size: 16),
-                  label: const Text('Re-authenticate / 重新登录'),
+                  label: Text(l10n.reauthenticate),
                   onPressed: () {
                     showDialog(
                       context: context,

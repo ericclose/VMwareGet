@@ -24,6 +24,20 @@ class ProductCard extends StatelessWidget {
     }
   }
 
+  String get _displayPlatformShort {
+    final label = release.platformLabel;
+    if (label.contains('Universal')) {
+      return 'Universal (.dmg)';
+    } else if (label.contains('Windows')) {
+      return 'Windows (.exe)';
+    } else if (label.contains('Linux')) {
+      return 'Linux (.bundle)';
+    } else if (label.contains('macOS')) {
+      return 'macOS (.dmg)';
+    }
+    return label;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -108,13 +122,26 @@ class ProductCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      '${release.platformLabel} • ${release.fileSize}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _displayPlatformShort,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          ' • ${release.fileSize}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

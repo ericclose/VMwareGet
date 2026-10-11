@@ -4,7 +4,6 @@ import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
-import '../widgets/diagnostic_dialog.dart';
 import 'login_dialog.dart';
 import 'metadata_panel.dart';
 
@@ -90,36 +89,79 @@ class CatalogView extends StatelessWidget {
                       catalog.refreshFromOnline(session);
                     },
             ),
-            const SizedBox(width: 4),
-            IconButton.filledTonal(
-              tooltip: 'Diagnostics & Live Logs (诊断日志)',
-              icon: const Icon(Icons.bug_report_rounded, size: 19),
-              onPressed: () => DiagnosticDialog.show(context),
-            ),
             if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
               const SizedBox(width: 4),
-              PopupMenuButton<VMwarePlatform?>(
+              PopupMenuButton<String>(
                 tooltip: 'Filter Platform',
-                initialValue: catalog.platformFilter,
                 icon: Icon(
                   Icons.filter_list_rounded,
                   color: catalog.platformFilter != null
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
                 ),
-                onSelected: (p) => catalog.setPlatformFilter(p),
+                onSelected: (val) {
+                  if (val == 'windows') {
+                    catalog.setPlatformFilter(VMwarePlatform.windows);
+                  } else if (val == 'linux') {
+                    catalog.setPlatformFilter(VMwarePlatform.linux);
+                  } else {
+                    catalog.setPlatformFilter(null);
+                  }
+                },
                 itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: null,
-                    child: Text('All Platforms'),
+                  PopupMenuItem<String>(
+                    value: 'all',
+                    child: Row(
+                      children: [
+                        Icon(
+                          catalog.platformFilter == null
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 16,
+                          color: catalog.platformFilter == null
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('All Platforms (全部平台)'),
+                      ],
+                    ),
                   ),
-                  const PopupMenuItem(
-                    value: VMwarePlatform.windows,
-                    child: Text('Windows only'),
+                  PopupMenuItem<String>(
+                    value: 'windows',
+                    child: Row(
+                      children: [
+                        Icon(
+                          catalog.platformFilter == VMwarePlatform.windows
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 16,
+                          color: catalog.platformFilter == VMwarePlatform.windows
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Windows only (.exe)'),
+                      ],
+                    ),
                   ),
-                  const PopupMenuItem(
-                    value: VMwarePlatform.linux,
-                    child: Text('Linux only'),
+                  PopupMenuItem<String>(
+                    value: 'linux',
+                    child: Row(
+                      children: [
+                        Icon(
+                          catalog.platformFilter == VMwarePlatform.linux
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 16,
+                          color: catalog.platformFilter == VMwarePlatform.linux
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Linux only (.bundle)'),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -164,7 +206,7 @@ class CatalogView extends StatelessWidget {
                     children: [
                       // Left column: releases list
                       Expanded(
-                        flex: 4,
+                        flex: 5,
                         child: catalog.filteredReleases.isEmpty
                             ? _buildEmptyState(
                                 context,
@@ -177,7 +219,7 @@ class CatalogView extends StatelessWidget {
                       const SizedBox(width: 16),
                       // Right column: detailed metadata panel
                       Expanded(
-                        flex: 5,
+                        flex: 6,
                         child: Card(
                           margin: EdgeInsets.zero,
                           child: MetadataPanel(
@@ -314,11 +356,6 @@ class CatalogView extends StatelessWidget {
                       builder: (_) => const LoginDialog(),
                     );
                   },
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.bug_report_rounded, size: 16),
-                  label: const Text('Diagnostics (诊断日志)'),
-                  onPressed: () => DiagnosticDialog.show(context),
                 ),
               ],
             ),

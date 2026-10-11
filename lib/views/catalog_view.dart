@@ -4,6 +4,7 @@ import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
+import 'login_dialog.dart';
 import 'metadata_panel.dart';
 
 class CatalogView extends StatelessWidget {
@@ -158,13 +159,11 @@ class CatalogView extends StatelessWidget {
                       Expanded(
                         flex: 4,
                         child: catalog.filteredReleases.isEmpty
-                            ? Center(
-                                child: Text(
-                                  'No releases found matching query',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
+                            ? _buildEmptyState(
+                                context,
+                                catalog,
+                                theme,
+                                colorScheme,
                               )
                             : releasesList,
                       ),
@@ -200,13 +199,11 @@ class CatalogView extends StatelessWidget {
               const SizedBox(height: 12),
               Expanded(
                 child: catalog.filteredReleases.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No releases found matching query',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                    ? _buildEmptyState(
+                        context,
+                        catalog,
+                        theme,
+                        colorScheme,
                       )
                     : releasesList,
               ),
@@ -214,6 +211,91 @@ class CatalogView extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    CatalogProvider catalog,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    if (catalog.isSyncing) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Fetching releases live from Broadcom...',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (catalog.searchQuery.trim().isNotEmpty) {
+      return Center(
+        child: Text(
+          'No releases found matching "${catalog.searchQuery}"',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_sync_outlined, size: 48, color: colorScheme.outline),
+            const SizedBox(height: 12),
+            Text(
+              'No Online Releases Loaded',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              catalog.syncStatusMessage ??
+                  'Please sign in to your Broadcom account to fetch the live product catalog.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              icon: const Icon(Icons.sync_rounded, size: 18),
+              label: const Text('Sync Online Catalog'),
+              onPressed: () {
+                final auth =
+                    Provider.of<AuthProvider>(context, listen: false);
+                if (auth.isAuthenticated) {
+                  catalog.refreshFromOnline(auth.currentSession);
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const LoginDialog(),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -14,10 +14,7 @@ class CatalogProvider extends ChangeNotifier {
   String? _syncStatusMessage;
 
   CatalogProvider() {
-    final initialList = _catalogService.getReleasesForFamily(_selectedFamily);
-    if (initialList.isNotEmpty) {
-      _selectedRelease = initialList.first;
-    }
+    _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
   }
 
   VMwareProductFamily get selectedFamily => _selectedFamily;
@@ -26,6 +23,7 @@ class CatalogProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isSyncing => _isSyncing;
   String? get syncStatusMessage => _syncStatusMessage;
+  CatalogService get catalogService => _catalogService;
 
   List<VMwareReleaseItem> get filteredReleases {
     return _catalogService.searchReleases(
@@ -60,7 +58,11 @@ class CatalogProvider extends ChangeNotifier {
   }
 
   Future<void> refreshFromOnline(AuthSession? session) async {
-    if (session == null) return;
+    if (session == null) {
+      _syncStatusMessage = 'Broadcom session required to fetch online catalog.';
+      notifyListeners();
+      return;
+    }
     _isSyncing = true;
     _syncStatusMessage = 'Connecting to Broadcom servers...';
     notifyListeners();
@@ -74,7 +76,7 @@ class CatalogProvider extends ChangeNotifier {
           _selectedRelease = items.first;
         }
       } else {
-        _syncStatusMessage = 'Offline cached catalog active';
+        _syncStatusMessage = 'Unable to fetch online catalog. Please verify session.';
       }
     } catch (e) {
       _syncStatusMessage = 'Sync error: $e';

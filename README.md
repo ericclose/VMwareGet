@@ -24,7 +24,8 @@
 - **Session Persistence:** Successfully authenticated session cookies and OAuth tokens are securely stored using encrypted local storage (`flutter_secure_storage` with fallback persistence).
 - **Instant Demo Session:** Allows immediate exploration and testing of product catalogs and verification flows.
 
-### 2.2 Dynamic Online Catalog & Broadcom API Sync
+### 2.2 100% Dynamic Online Catalog & Broadcom API Sync
+- **Zero Hardcoded Catalog:** The application contains zero hardcoded release metadata or static fallback entries. All releases and checksums are fetched 100% dynamically from Broadcom's servers upon session connection.
 - **Live Online Sync:** Dynamically queries official Broadcom API endpoints:
   - `POST /group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50`
   - Retrieves real-time release versions, build numbers, file sizes, SHA2 (SHA-256), and MD5 checksums.

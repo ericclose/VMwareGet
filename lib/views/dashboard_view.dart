@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/catalog_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_logo.dart';
@@ -17,6 +18,18 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.isAuthenticated && auth.currentSession != null) {
+        final catalog = Provider.of<CatalogProvider>(context, listen: false);
+        catalog.refreshFromOnline(auth.currentSession);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

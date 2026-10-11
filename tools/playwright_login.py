@@ -32,8 +32,10 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
             'Chrome/155.0.0.0 Safari/537.36'
         ),
         'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
         'Content-Type': 'application/json;charset=UTF-8',
         'Origin': 'https://support.broadcom.com',
+        'Referer': 'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro&displayGroup=VMware%20Workstation%20Pro%2026H1%20for%20Windows&release=26H1u1&os=&servicePk=546859&language=EN&freeDownloads=true',
         'x-csrf-token': csrf_token,
     })
     s.cookies.update(cookies_dict)
@@ -57,18 +59,21 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
         r_cat = s.post(cat_url, json=cat_payload, timeout=25)
         print(f" -> getDownloadableFiles status: HTTP {r_cat.status_code}")
         if r_cat.status_code == 200:
-            data = r_cat.json()
-            if data.get('success'):
-                content = data.get('data', {}).get('packlistDetails', {}).get('content', [])
-                if content:
-                    f = content[0].get('fileDetails', [])[0]
-                    print(" [+] Successfully retrieved online file metadata!")
-                    print(f"     - File:   {f.get('fileName')}")
-                    print(f"     - Size:   {f.get('fileSize')} bytes")
-                    print(f"     - SHA256: {f.get('sha2Chksum')}")
-                    print(f"     - MD5:    {f.get('md5Chksum')}")
+            if not r_cat.text.strip():
+                print(" [!] Catalog response body is empty (session may require full browser reload).")
             else:
-                print(f" [!] API response: {data.get('message')}")
+                data = r_cat.json()
+                if data.get('success'):
+                    content = data.get('data', {}).get('packlistDetails', {}).get('content', [])
+                    if content:
+                        f = content[0].get('fileDetails', [])[0]
+                        print(" [+] Successfully retrieved online file metadata!")
+                        print(f"     - File:   {f.get('fileName')}")
+                        print(f"     - Size:   {f.get('fileSize')} bytes")
+                        print(f"     - SHA256: {f.get('sha2Chksum')}")
+                        print(f"     - MD5:    {f.get('md5Chksum')}")
+                else:
+                    print(f" [!] API response: {data.get('message')}")
         else:
             print(f" [!] Catalog request failed: HTTP {r_cat.status_code}")
     except Exception as e:
@@ -99,18 +104,21 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
         r_order = s.post(order_url, json=order_payload, timeout=25)
         print(f" -> createProductDownloadOrder status: HTTP {r_order.status_code}")
         if r_order.status_code == 200:
-            order_data = r_order.json()
-            d_url = order_data.get('data', {}).get('downloadUrl')
-            if d_url:
-                print(f" [+] Successfully created authorized download order!")
-                print(f"     - CDN Download URL: {d_url[:80]}...")
-                r_probe = s.get(d_url, headers={'Range': 'bytes=0-10'}, stream=True, timeout=15)
-                print(f"     - Live CDN Stream probe: HTTP {r_probe.status_code} ({r_probe.headers.get('Content-Type')})")
-                if r_probe.status_code in (200, 206):
-                    print(" [✓] SESSION CONFIRMED FULLY FUNCTIONAL FOR ONLINE CATALOG & DOWNLOADS!")
-                    return True
+            if not r_order.text.strip():
+                print(" [!] Download order response body is empty.")
             else:
-                print(f" [!] Download order non-200 payload: {order_data}")
+                order_data = r_order.json()
+                d_url = order_data.get('data', {}).get('downloadUrl')
+                if d_url:
+                    print(f" [+] Successfully created authorized download order!")
+                    print(f"     - CDN Download URL: {d_url[:80]}...")
+                    r_probe = s.get(d_url, headers={'Range': 'bytes=0-10'}, stream=True, timeout=15)
+                    print(f"     - Live CDN Stream probe: HTTP {r_probe.status_code} ({r_probe.headers.get('Content-Type')})")
+                    if r_probe.status_code in (200, 206):
+                        print(" [✓] SESSION CONFIRMED FULLY FUNCTIONAL FOR ONLINE CATALOG & DOWNLOADS!")
+                        return True
+                else:
+                    print(f" [!] Download order response: {order_data}")
         else:
             print(f" [!] Order request failed: HTTP {r_order.status_code}")
     except Exception as e:
@@ -126,6 +134,7 @@ def save_session(cookies_dict, csrf_token='YaLAJUoR', email=''):
             'cookies': cookies_dict,
             'headers': {
                 'x-csrf-token': csrf_token,
+                'referer': 'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro&displayGroup=VMware%20Workstation%20Pro%2026H1%20for%20Windows&release=26H1u1&os=&servicePk=546859&language=EN&freeDownloads=true',
             },
             'saved_at': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
         }
@@ -207,20 +216,36 @@ def run_playwright_login(email='', password='', headless=False):
             print(f" [!] Note on password step: {e}")
 
         # 3. Wait for settlement back to support.broadcom.com
-        print(" [*] Waiting for login callback and session completion (up to 60s)...")
+        print(" [*] Waiting for login callback and session completion (up to 90s)...")
         print("     (If you have 2FA/SMS/VIP code enabled, please approve it now)")
 
         authenticated = False
         cookies_dict = {}
 
-        for _ in range(60):
+        for _ in range(90):
             time.sleep(1)
             raw_cookies = context.cookies()
             cookies_dict = {c['name']: c['value'] for c in raw_cookies}
+            cur_url = page.url.lower()
 
-            if 'SAML_SP_SESSION_KEY' in cookies_dict or ('JSESSIONID' in cookies_dict and 'support.broadcom.com' in page.url and 'signin' not in page.url):
+            is_back_at_support = (
+                'support.broadcom.com' in cur_url and
+                'access.broadcom.com' not in cur_url and
+                'signin' not in cur_url and
+                'saml' not in cur_url
+            )
+            has_auth_cookies = 'SAML_SP_SESSION_KEY' in cookies_dict and 'JSESSIONID' in cookies_dict
+
+            if is_back_at_support and has_auth_cookies:
                 authenticated = True
-                print("\n [✓] Successfully detected authenticated session cookies!")
+                print("\n [✓] Successfully landed back on support.broadcom.com with authenticated session!")
+                # Give page 3 seconds to complete Liferay frontend bootstrap
+                time.sleep(3)
+                break
+            elif has_auth_cookies and 'access.broadcom.com' not in cur_url:
+                authenticated = True
+                print("\n [✓] Authenticated session detected!")
+                time.sleep(3)
                 break
 
         # Extract CSRF token from page DOM if available
@@ -232,6 +257,10 @@ def run_playwright_login(email='', password='', headless=False):
                 print(f" [*] Extracted page CSRF Token: {csrf_token}")
         except Exception:
             pass
+
+        # Retrieve final settled cookies before closing
+        raw_cookies = context.cookies()
+        cookies_dict = {c['name']: c['value'] for c in raw_cookies}
 
         browser.close()
 
@@ -247,13 +276,16 @@ def run_playwright_login(email='', password='', headless=False):
             masked = v[:10] + "..." + v[-6:] if len(v) > 20 else v
             print(f"  • {k:30} = {masked}")
 
+    # Immediately save captured session so it is preserved for Flutter & CLI tools
+    save_session(cookies_dict, csrf_token=csrf_token, email=email)
+
     # Verify captured cookies with live APIs
     success = verify_session_against_broadcom(cookies_dict, csrf_token=csrf_token, email=email)
     if success:
-        save_session(cookies_dict, csrf_token=csrf_token, email=email)
         print("\n [✓] COMPLETE! Session verified and ready for Flutter application.")
         return True
 
+    print("\n [!] Session saved to tools/.session.json. You may test with './test_broadcom.sh test'.")
     return False
 
 

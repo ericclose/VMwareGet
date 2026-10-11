@@ -103,6 +103,11 @@ class AuthService {
             'Cookie': cookieHeader,
             'x-csrf-token': csrfHeader,
             'Origin': 'https://support.broadcom.com',
+            'Referer':
+                'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro&displayGroup=VMware%20Workstation%20Pro%2026H1%20for%20Windows&release=26H1u1&os=&servicePk=546859&language=EN&freeDownloads=true',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language':
+                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
           },
         ),
       );

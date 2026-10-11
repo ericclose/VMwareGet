@@ -92,6 +92,24 @@ class CatalogService {
 
     for (final target in queryTargets) {
       try {
+        final subFamily = target['family'] == VMwareProductFamily.workstationPro
+            ? 'VMware Workstation Pro'
+            : 'VMware Fusion';
+        final refererUrl =
+            'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(subFamily)}&displayGroup=${Uri.encodeComponent(target['displayGroup'] as String)}&release=${target['release']}&os=&servicePk=${target['genLevel']}&language=EN&freeDownloads=true';
+
+        final options = Options(
+          headers: {
+            'Cookie': cookieHeader,
+            'x-csrf-token': csrfHeader,
+            'Origin': 'https://support.broadcom.com',
+            'Referer': refererUrl,
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language':
+                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+          },
+        );
+
         final resp = await _dio.post(
           'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50',
           data: {

@@ -86,6 +86,11 @@ class DownloadService {
           headers: {
             'Content-Type': 'application/json;charset=UTF-8',
             'Origin': 'https://support.broadcom.com',
+            'Referer':
+                'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(release.family == VMwareProductFamily.workstationPro ? "VMware Workstation Pro" : "VMware Fusion")}&displayGroup=${Uri.encodeComponent(release.displayGroup ?? "")}&release=${release.version}&os=&servicePk=${release.servicePk ?? ""}&language=EN&freeDownloads=true',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language':
+                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
             'Cookie': session.cookieJar ?? session.sessionToken,
             'x-csrf-token': session.csrfToken ?? 'YaLAJUoR',
           },

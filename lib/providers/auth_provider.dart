@@ -91,6 +91,36 @@ class AuthProvider extends ChangeNotifier {
     return await _authService.launchBroadcomRegister();
   }
 
+  Future<bool> loginWithInAppWebView({
+    void Function(String message)? onStatusUpdate,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final session = await _authService.loginWithInAppWebView(
+        onStatusUpdate: onStatusUpdate,
+      );
+      if (session != null) {
+        _currentSession = session;
+        _status = AuthStatus.authenticated;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> loadLocalTestSession() async {
     _isLoading = true;
     _errorMessage = null;

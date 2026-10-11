@@ -1,3 +1,4 @@
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -7,7 +8,10 @@ import 'providers/theme_provider.dart';
 import 'utils/constants.dart';
 import 'views/auth_gate.dart';
 
-void main() {
+void main(List<String> args) {
+  if (runWebViewTitleBarWidget(args)) {
+    return;
+  }
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const VMwareGetApp());
 }

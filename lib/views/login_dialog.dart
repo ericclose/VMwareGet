@@ -19,6 +19,7 @@ class _LoginDialogState extends State<LoginDialog> {
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
   bool _hasLocalTestSession = false;
+  String? _inAppStatus;
 
   @override
   void initState() {
@@ -34,6 +35,39 @@ class _LoginDialogState extends State<LoginDialog> {
         setState(() => _hasLocalTestSession = true);
       }
     } catch (_) {}
+  }
+
+  void _loginWithInApp() async {
+    setState(() {
+      _isSubmitting = true;
+      _inAppStatus = 'Launching in-app secure portal...';
+    });
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    final success = await authProvider.loginWithInAppWebView(
+      onStatusUpdate: (msg) {
+        if (mounted) setState(() => _inAppStatus = msg);
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _isSubmitting = false;
+        _inAppStatus = null;
+      });
+      if (success) {
+        final catalog = Provider.of<CatalogProvider>(context, listen: false);
+        catalog.refreshFromOnline(authProvider.currentSession);
+        Navigator.of(context).pop(true);
+      } else if (authProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage!),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -220,6 +254,149 @@ class _LoginDialogState extends State<LoginDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // Method 1: Recommended In-App Browser Auto-Capture
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primaryContainer.withValues(alpha: 0.6),
+                          colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.35),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.language_rounded,
+                                color: colorScheme.onPrimary,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'In-App Browser Login',
+                                        style: theme.textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade700,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          'RECOMMENDED',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    'Opens secure WKWebView window & auto-captures session upon login',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_inAppStatus != null) ...[
+                          const SizedBox(height: 12),
+                          LinearProgressIndicator(
+                            backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _inAppStatus!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                            label: Text(
+                              _isSubmitting
+                                  ? 'Authenticating in-app...'
+                                  : 'Sign In via In-App Browser (内置浏览器安全登录)',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            onPressed: _isSubmitting ? null : _loginWithInApp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          'OR MANUAL IMPORT',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -235,7 +412,7 @@ class _LoginDialogState extends State<LoginDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Step 1: Authenticate in Browser',
+                          'Alternative: External Browser & Copy Cookies',
                           style: theme.textTheme.labelMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -246,7 +423,7 @@ class _LoginDialogState extends State<LoginDialog> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 icon: const Icon(Icons.launch_rounded, size: 16),
-                                label: const Text('Open Login Portal'),
+                                label: const Text('External Browser'),
                                 onPressed: () =>
                                     authProvider.openBroadcomLoginPortal(),
                               ),

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -173,5 +175,145 @@ class AuthService {
   Future<bool> launchProductDownloads(String url) async {
     final uri = Uri.parse(url);
     return await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Launch native in-app WKWebView window to log into Broadcom and automatically capture session
+  Future<AuthSession?> loginWithInAppWebView({
+    void Function(String message)? onStatusUpdate,
+  }) async {
+    if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux)) {
+      throw UnsupportedError('In-App WebView login is only supported on Desktop platforms.');
+    }
+
+    if (!await WebviewWindow.isWebviewAvailable()) {
+      throw StateError('Desktop WebView runtime is not available on this system.');
+    }
+
+    onStatusUpdate?.call('Launching Broadcom in-app secure portal...');
+
+    final webview = await WebviewWindow.create(
+      configuration: const CreateConfiguration(
+        title: 'Broadcom Account Authentication - VMwareGet',
+        windowWidth: 1040,
+        windowHeight: 760,
+      ),
+    );
+
+    webview.launch(AppConstants.broadcomLoginUrl);
+
+    final completer = Completer<AuthSession?>();
+    Timer? pollTimer;
+    bool isCompleted = false;
+
+    void cleanup() {
+      pollTimer?.cancel();
+    }
+
+    void finishWithSession(AuthSession session) {
+      if (isCompleted) return;
+      isCompleted = true;
+      cleanup();
+      webview.close();
+      if (!completer.isCompleted) {
+        completer.complete(session);
+      }
+    }
+
+    webview.onClose.then((_) {
+      cleanup();
+      if (!isCompleted && !completer.isCompleted) {
+        completer.complete(null);
+      }
+    });
+
+    // Check cookies every 1200ms
+    pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) async {
+      try {
+        final cookies = await webview.getAllCookies();
+        if (cookies.isEmpty) return;
+
+        final broadcomCookies =
+            cookies.where((c) => c.domain.contains('broadcom.com')).toList();
+        if (broadcomCookies.isEmpty) return;
+
+        final hasJSessionId =
+            broadcomCookies.any((c) => c.name.toUpperCase() == 'JSESSIONID');
+        final hasOktaOrIngress = broadcomCookies.any((c) =>
+            c.name.toLowerCase().contains('okta') ||
+            c.name.toLowerCase().contains('liferay') ||
+            c.name.toLowerCase().contains('portal'));
+
+        if (hasJSessionId && hasOktaOrIngress) {
+          final cookieHeader =
+              broadcomCookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+          String? csrfToken;
+          try {
+            final csrfResult = await webview
+                .evaluateJavaScript('window.Liferay?.authToken || ""');
+            if (csrfResult != null &&
+                csrfResult.toString().isNotEmpty &&
+                csrfResult.toString() != '""') {
+              csrfToken = csrfResult.toString().replaceAll('"', '').trim();
+            }
+          } catch (_) {}
+
+          onStatusUpdate?.call('Broadcom authentication detected! Validating session...');
+
+          // Test verification with live SKU API
+          try {
+            final dio = Dio();
+            final resp = await dio.post(
+              'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
+              data: {
+                'subFamily': 'VMware Workstation Pro',
+                'searchVal': '',
+                'language': 'EN',
+                'freeDownloads': true,
+              },
+              options: Options(
+                headers: {
+                  'Cookie': cookieHeader,
+                  'x-csrf-token': csrfToken ?? 'YaLAJUoR',
+                  'Origin': 'https://support.broadcom.com',
+                  'Referer': AppConstants.broadcomLoginUrl,
+                },
+              ),
+            );
+
+            if (resp.statusCode == 200 &&
+                resp.data is Map &&
+                (resp.data as Map)['success'] == true) {
+              String userEmail = 'account@broadcom.com';
+              try {
+                final emailResult = await webview.evaluateJavaScript(
+                    'window.themeDisplay?.getUserEmailAddress() || ""');
+                if (emailResult != null &&
+                    emailResult.toString().contains('@')) {
+                  userEmail =
+                      emailResult.toString().replaceAll('"', '').trim();
+                }
+              } catch (_) {}
+
+              final session = await authenticateManual(
+                email: userEmail,
+                tokenOrCookie: cookieHeader,
+                displayName: userEmail.contains('@')
+                    ? userEmail.split('@').first
+                    : 'Broadcom User',
+                csrfToken: csrfToken ?? 'YaLAJUoR',
+              );
+
+              onStatusUpdate?.call('Login successful! Session captured.');
+              finishWithSession(session);
+            }
+          } catch (_) {
+            // User still interacting or authenticating, keep waiting
+          }
+        }
+      } catch (_) {}
+    });
+
+    return completer.future;
   }
 }

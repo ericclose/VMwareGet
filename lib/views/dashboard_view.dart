@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../widgets/app_logo.dart';
 import 'catalog_view.dart';
 import 'downloads_view.dart';
+import 'login_dialog.dart';
 import 'settings_view.dart';
 
 class DashboardView extends StatefulWidget {
@@ -130,11 +131,139 @@ class _DashboardViewState extends State<DashboardView> {
                   );
                 },
               ),
-              IconButton(
-                tooltip: 'Account Settings',
-                icon: const Icon(Icons.account_circle_outlined),
-                onPressed: () => setState(() => _currentIndex = 2),
-              ),
+              const SizedBox(width: 4),
+
+              // Quick Account & Session Menu with Fast Sign-out
+              if (authProvider.isAuthenticated) ...[
+                PopupMenuButton<String>(
+                  tooltip: 'Account & Session Options',
+                  offset: const Offset(0, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  icon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Text(
+                          ((authProvider.currentSession?.displayName.isNotEmpty ?? false)
+                                  ? authProvider.currentSession!.displayName[0]
+                                  : 'U')
+                              .toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                  onSelected: (value) async {
+                    if (value == 'settings') {
+                      setState(() => _currentIndex = 2);
+                    } else if (value == 'logout') {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Sign Out / 注销登录'),
+                          content: const Text(
+                            'Are you sure you want to sign out? Your cached Broadcom session and access tokens will be cleared.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Theme.of(ctx).colorScheme.error,
+                              ),
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Sign Out'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await authProvider.logout();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Signed out successfully. Session cleared.'),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            authProvider.currentSession?.displayName ?? 'Authenticated User',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            authProvider.currentSession?.email ?? '',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          Icon(Icons.manage_accounts_rounded, size: 18),
+                          SizedBox(width: 10),
+                          Text('Session Details (会话详情)'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout_rounded, size: 18, color: colorScheme.error),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Sign Out (注销登录)',
+                            style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.login_rounded, size: 16),
+                  label: const Text('Sign In (登录)'),
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => const LoginDialog(),
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
             ],
           ),

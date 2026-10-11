@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vmwareget/l10n/app_localizations.dart';
@@ -102,5 +104,44 @@ void main() {
       expect(l10nEo.etaLabel, equals('Restas'));
       expect(l10nEo.recommended, equals('Rekomendita'));
     });
+
+    testWidgets('MaterialApp renders with Locale eo without crashing', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          locale: Locale('eo'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            _FallbackMaterialLocalizationsDelegate(),
+            _FallbackCupertinoLocalizationsDelegate(),
+          ],
+          home: Scaffold(body: Text('Hello')),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
+}
+
+class _FallbackMaterialLocalizationsDelegate extends LocalizationsDelegate<MaterialLocalizations> {
+  const _FallbackMaterialLocalizationsDelegate();
+  @override
+  bool isSupported(Locale locale) => true;
+  @override
+  Future<MaterialLocalizations> load(Locale locale) => DefaultMaterialLocalizations.load(locale);
+  @override
+  bool shouldReload(_FallbackMaterialLocalizationsDelegate old) => false;
+}
+
+class _FallbackCupertinoLocalizationsDelegate extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _FallbackCupertinoLocalizationsDelegate();
+  @override
+  bool isSupported(Locale locale) => true;
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) => DefaultCupertinoLocalizations.load(locale);
+  @override
+  bool shouldReload(_FallbackCupertinoLocalizationsDelegate old) => false;
 }

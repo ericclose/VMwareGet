@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -144,6 +145,8 @@ class VMwareGetApp extends StatelessWidget {
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
+              FallbackMaterialLocalizationsDelegate(),
+              FallbackCupertinoLocalizationsDelegate(),
             ],
             themeMode: themeProvider.themeMode,
             theme: ThemeProvider.lightTheme(),
@@ -154,4 +157,38 @@ class VMwareGetApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Fallback Material localizations delegate for languages not in Flutter's
+/// built-in ~78 locales (e.g. Esperanto, community/custom locales).
+class FallbackMaterialLocalizationsDelegate
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const FallbackMaterialLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      DefaultMaterialLocalizations.load(locale);
+
+  @override
+  bool shouldReload(FallbackMaterialLocalizationsDelegate old) => false;
+}
+
+/// Fallback Cupertino localizations delegate for languages not in Flutter's
+/// built-in ~78 locales.
+class FallbackCupertinoLocalizationsDelegate
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const FallbackCupertinoLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) =>
+      DefaultCupertinoLocalizations.load(locale);
+
+  @override
+  bool shouldReload(FallbackCupertinoLocalizationsDelegate old) => false;
 }

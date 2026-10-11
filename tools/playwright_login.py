@@ -12,6 +12,11 @@ import json
 import time
 import getpass
 import argparse
+import warnings
+
+# Suppress LibreSSL / urllib3 NotOpenSSLWarning on macOS system python
+warnings.filterwarnings('ignore', category=Warning)
+
 import requests
 from playwright.sync_api import sync_playwright
 

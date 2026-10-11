@@ -15,6 +15,11 @@ import random
 import base64
 import urllib.parse
 import argparse
+import warnings
+
+# Suppress LibreSSL / urllib3 NotOpenSSLWarning on macOS system python
+warnings.filterwarnings('ignore', category=Warning)
+
 import requests
 from bs4 import BeautifulSoup
 from cryptography.hazmat.primitives import hashes

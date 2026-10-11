@@ -10,6 +10,11 @@ import json
 import re
 import argparse
 import subprocess
+import warnings
+
+# Suppress LibreSSL / urllib3 NotOpenSSLWarning on macOS system python
+warnings.filterwarnings('ignore', category=Warning)
+
 import requests
 from bs4 import BeautifulSoup
 

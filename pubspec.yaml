@@ -22,7 +22,8 @@ dependencies:
   intl: ^0.20.3
   path: ^1.9.0
   shared_preferences: ^2.3.5
-  desktop_webview_window: ^0.3.0
+  desktop_webview_window:
+    path: packages/desktop_webview_window
 
 dev_dependencies:
   flutter_test:

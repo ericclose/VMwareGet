@@ -539,60 +539,75 @@ class SettingsView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    PopupMenuButton<String>(
+                      tooltip: l10n.displayLanguage,
+                      elevation: 2,
+                      shadowColor: Colors.black.withValues(alpha: 0.08),
+                      surfaceTintColor: Colors.transparent,
+                      color: colorScheme.surface,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
+                        side: BorderSide(
                           color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                          width: 1,
                         ),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: localeProvider.locale.languageCode,
-                          icon: const Icon(Icons.arrow_drop_down_rounded),
-                          borderRadius: BorderRadius.circular(12),
-                          items: [
-                            DropdownMenuItem(
-                              value: 'en',
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('🇺🇸', style: TextStyle(fontSize: 16)),
-                                  const SizedBox(width: 10),
-                                  Text(l10n.langEnglish, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                ],
+                      position: PopupMenuPosition.under,
+                      onSelected: (code) => localeProvider.setLocale(Locale(code)),
+                      itemBuilder: (context) => [
+                        _buildLanguageMenuItem(
+                          value: 'en',
+                          flag: '🇺🇸',
+                          label: l10n.langEnglish,
+                          isSelected: localeProvider.locale.languageCode == 'en',
+                          theme: theme,
+                        ),
+                        _buildLanguageMenuItem(
+                          value: 'zh',
+                          flag: '🇨🇳',
+                          label: l10n.langChinese,
+                          isSelected: localeProvider.locale.languageCode == 'zh',
+                          theme: theme,
+                        ),
+                        _buildLanguageMenuItem(
+                          value: 'eo',
+                          flag: '🌐',
+                          label: l10n.langEsperanto,
+                          isSelected: localeProvider.locale.languageCode == 'eo',
+                          theme: theme,
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.8),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _getLanguageFlag(localeProvider.locale.languageCode),
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _getLanguageLabel(localeProvider.locale.languageCode, l10n),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            DropdownMenuItem(
-                              value: 'zh',
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('🇨🇳', style: TextStyle(fontSize: 16)),
-                                  const SizedBox(width: 10),
-                                  Text(l10n.langChinese, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                ],
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'eo',
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('🌐', style: TextStyle(fontSize: 16)),
-                                  const SizedBox(width: 10),
-                                  Text(l10n.langEsperanto, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                ],
-                              ),
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.unfold_more_rounded,
+                              size: 16,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ],
-                          onChanged: (code) {
-                            if (code != null) {
-                              localeProvider.setLocale(Locale(code));
-                            }
-                          },
                         ),
                       ),
                     ),
@@ -746,6 +761,63 @@ class SettingsView extends StatelessWidget {
       case 'en':
       default:
         return 'English (United States)';
+    }
+  }
+
+  PopupMenuItem<String> _buildLanguageMenuItem({
+    required String value,
+    required String flag,
+    required String label,
+    required bool isSelected,
+    required ThemeData theme,
+  }) {
+    final colorScheme = theme.colorScheme;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 38,
+      child: Row(
+        children: [
+          Text(flag, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+              ),
+            ),
+          ),
+          if (isSelected) ...[
+            const SizedBox(width: 8),
+            Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _getLanguageFlag(String code) {
+    switch (code) {
+      case 'zh':
+        return '🇨🇳';
+      case 'eo':
+        return '🌐';
+      case 'en':
+      default:
+        return '🇺🇸';
+    }
+  }
+
+  String _getLanguageLabel(String code, AppLocalizations l10n) {
+    switch (code) {
+      case 'zh':
+        return l10n.langChinese;
+      case 'eo':
+        return l10n.langEsperanto;
+      case 'en':
+      default:
+        return l10n.langEnglish;
     }
   }
 }

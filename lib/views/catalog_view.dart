@@ -54,7 +54,7 @@ class CatalogView extends StatelessWidget {
           children: [
             Expanded(
               child: SearchBar(
-                hintText: 'Search version, build, file name...',
+                hintText: l10n.searchPlaceholder,
                 leading: const Icon(Icons.search_rounded, size: 20),
                 elevation: const WidgetStatePropertyAll(0),
                 backgroundColor: WidgetStatePropertyAll(
@@ -76,7 +76,7 @@ class CatalogView extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton.filledTonal(
-              tooltip: 'Sync Online from Broadcom',
+              tooltip: l10n.syncOnlineCatalog,
               icon: catalog.isSyncing
                   ? const SizedBox(
                       width: 18,
@@ -94,7 +94,7 @@ class CatalogView extends StatelessWidget {
             if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
               const SizedBox(width: 4),
               PopupMenuButton<String>(
-                tooltip: 'Filter Platform',
+                tooltip: l10n.filterPlatform,
                 icon: Icon(
                   Icons.filter_list_rounded,
                   color: catalog.platformFilter != null
@@ -143,7 +143,7 @@ class CatalogView extends StatelessWidget {
                               : colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
-                        const Text('Windows only (.exe)'),
+                        Text(l10n.windowsOnly),
                       ],
                     ),
                   ),
@@ -161,7 +161,7 @@ class CatalogView extends StatelessWidget {
                               : colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
-                        const Text('Linux only (.bundle)'),
+                        Text(l10n.linuxOnly),
                       ],
                     ),
                   ),
@@ -315,15 +315,14 @@ class CatalogView extends StatelessWidget {
             Icon(Icons.cloud_sync_outlined, size: 48, color: colorScheme.outline),
             const SizedBox(height: 12),
             Text(
-              'No Online Releases Loaded',
+              l10n.noOnlineReleasesLoaded,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              catalog.syncStatusMessage ??
-                  'Please sign in to your Broadcom account to fetch the live product catalog.',
+              catalog.syncStatusMessage ?? l10n.authRequiredDesc,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,

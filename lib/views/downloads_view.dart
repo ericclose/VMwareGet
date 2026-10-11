@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/download_provider.dart';
 import '../widgets/download_progress_tile.dart';
 
@@ -15,6 +16,7 @@ class DownloadsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final downloadProvider = Provider.of<DownloadProvider>(context);
 
     final downloads = downloadProvider.allDownloads;
@@ -47,7 +49,7 @@ class DownloadsView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Download Directory',
+                        l10n.downloadDirectoryLabel,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
@@ -55,7 +57,7 @@ class DownloadsView extends StatelessWidget {
                       ),
                       Text(
                         downloadProvider.downloadDirectory ??
-                            'Resolving local path...',
+                            l10n.resolvingLocalPath,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontFamily: 'monospace',
                           fontSize: 12,
@@ -75,7 +77,7 @@ class DownloadsView extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Active & Recent Transfers',
+                l10n.activeRecentTransfers,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -83,7 +85,7 @@ class DownloadsView extends StatelessWidget {
               const SizedBox(width: 8),
               if (downloadProvider.activeCount > 0)
                 Badge(
-                  label: Text('${downloadProvider.activeCount} active'),
+                  label: Text(l10n.activeCountBadge(downloadProvider.activeCount)),
                   backgroundColor: colorScheme.primary,
                 ),
             ],
@@ -104,14 +106,14 @@ class DownloadsView extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No active or past downloads',
+                          l10n.noDownloadsYet,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Choose VMware Workstation Pro or Fusion to start downloading',
+                          l10n.noDownloadsDesc,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -119,7 +121,7 @@ class DownloadsView extends StatelessWidget {
                         const SizedBox(height: 16),
                         FilledButton.tonalIcon(
                           icon: const Icon(Icons.explore_rounded, size: 18),
-                          label: const Text('Browse Software Catalog'),
+                          label: Text(l10n.browseCatalog),
                           onPressed: onNavigateToCatalog,
                         ),
                       ],

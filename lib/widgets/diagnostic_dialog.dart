@@ -30,6 +30,7 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
   }
 
   void _copyAllLogs() async {
+    final l10n = AppLocalizations.of(context);
     final text = DiagnosticService.instance.exportFormattedLogs();
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
@@ -39,7 +40,7 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
             children: [
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text('Copied ${DiagnosticService.instance.entries.length} log lines to clipboard!'),
+              Text(l10n.copiedLogLines(DiagnosticService.instance.entries.length)),
             ],
           ),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -53,6 +54,7 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return ListenableBuilder(
@@ -103,13 +105,13 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Technical Diagnostics & Live Logs',
+                              l10n.diagnosticLogsTitle,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'Full pipeline tracking: SSO authentication, cookie jar, CSRF, and Broadcom REST APIs',
+                              l10n.diagnosticSubtitle,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -123,12 +125,12 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                           visualDensity: VisualDensity.compact,
                         ),
                         icon: const Icon(Icons.copy_rounded, size: 16),
-                        label: Text(AppLocalizations.of(context).copyAllLogs),
+                        label: Text(l10n.copyAllLogs),
                         onPressed: allEntries.isEmpty ? null : _copyAllLogs,
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        tooltip: AppLocalizations.of(context).close,
+                        tooltip: l10n.close,
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
@@ -141,7 +143,7 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                     children: [
                       Expanded(
                         child: SearchBar(
-                          hintText: 'Filter log message, tag, or payload...',
+                          hintText: l10n.filterLogsHint,
                           leading: const Icon(Icons.search_rounded, size: 18),
                           elevation: const WidgetStatePropertyAll(0),
                           backgroundColor: WidgetStatePropertyAll(
@@ -163,10 +165,10 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                       ),
                       const SizedBox(width: 10),
                       SegmentedButton<DiagnosticLogLevel?>(
-                        segments: const [
-                          ButtonSegment(value: null, label: Text('All')),
-                          ButtonSegment(value: DiagnosticLogLevel.http, label: Text('HTTP')),
-                          ButtonSegment(value: DiagnosticLogLevel.error, label: Text('Errors')),
+                        segments: [
+                          ButtonSegment(value: null, label: Text(l10n.filterAll)),
+                          const ButtonSegment(value: DiagnosticLogLevel.http, label: Text('HTTP')),
+                          ButtonSegment(value: DiagnosticLogLevel.error, label: Text(l10n.filterErrors)),
                         ],
                         selected: {_filterLevel},
                         onSelectionChanged: (set) {
@@ -179,7 +181,7 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        tooltip: 'Clear Logs',
+                        tooltip: l10n.clearLogs,
                         icon: const Icon(Icons.delete_outline_rounded, size: 20),
                         onPressed: allEntries.isEmpty
                             ? null
@@ -204,8 +206,8 @@ class _DiagnosticDialogState extends State<DiagnosticDialog> {
                           ? Center(
                               child: Text(
                                 allEntries.isEmpty
-                                    ? 'No diagnostic logs yet. Trigger a login or catalog sync to see live trace.'
-                                    : 'No logs matching current filter.',
+                                    ? l10n.noLogsYet
+                                    : l10n.noLogsMatching,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),

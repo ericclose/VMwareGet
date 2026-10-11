@@ -133,7 +133,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    'Recommended',
+                                    l10n.recommended,
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
@@ -184,7 +184,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                     : () async {
                         setState(() => _isPicking = true);
                         final selected = await FolderPickerService.pickDirectory(
-                          prompt: 'Select VMware Download Directory',
+                          prompt: l10n.selectDownloadDirPrompt,
                         );
                         setState(() => _isPicking = false);
                         if (selected != null && selected.isNotEmpty) {

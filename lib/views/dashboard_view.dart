@@ -118,8 +118,8 @@ class _DashboardViewState extends State<DashboardView> {
             actions: [
               IconButton(
                 tooltip: themeProvider.isDarkMode
-                    ? 'Switch to Light Theme'
-                    : 'Switch to Dark Theme',
+                    ? l10n.switchToLightMode
+                    : l10n.switchToDarkMode,
                 icon: Icon(
                   themeProvider.isDarkMode
                       ? Icons.light_mode_rounded
@@ -138,7 +138,7 @@ class _DashboardViewState extends State<DashboardView> {
               // Quick Account & Session Menu with Fast Sign-out
               if (authProvider.isAuthenticated) ...[
                 PopupMenuButton<String>(
-                  tooltip: 'Account & Session Options',
+                  tooltip: l10n.accountOptions,
                   offset: const Offset(0, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -178,10 +178,8 @@ class _DashboardViewState extends State<DashboardView> {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: Text(l10n.signOut),
-                          content: const Text(
-                            'Are you sure you want to sign out? Your cached Broadcom session and access tokens will be cleared.',
-                          ),
+                          title: Text(l10n.signOutConfirmTitle),
+                          content: Text(l10n.signOutConfirmContent),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(false),
@@ -201,8 +199,8 @@ class _DashboardViewState extends State<DashboardView> {
                         catalogProvider.clearCatalog();
                         await authProvider.logout();
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Signed out successfully. Session cleared.'),
+                          SnackBar(
+                            content: Text(l10n.signedOutSuccess),
                           ),
                         );
                       }
@@ -285,7 +283,7 @@ class _DashboardViewState extends State<DashboardView> {
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: IconButton(
-                          tooltip: 'Sign Out',
+                          tooltip: l10n.signOut,
                           icon: Icon(
                             Icons.logout_rounded,
                             color: colorScheme.outline,

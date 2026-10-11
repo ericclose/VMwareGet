@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 
 class ChecksumBadge extends StatelessWidget {
   final String label;
@@ -14,10 +15,11 @@ class ChecksumBadge extends StatelessWidget {
   });
 
   void _copyToClipboard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     Clipboard.setData(ClipboardData(text: checksum));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label copied to clipboard!'),
+        content: Text(l10n.copiedToClipboard(label)),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -28,6 +30,7 @@ class ChecksumBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -67,7 +70,7 @@ class ChecksumBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           IconButton(
-            tooltip: 'Copy $label',
+            tooltip: l10n.copyLabel(label),
             iconSize: 16,
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,

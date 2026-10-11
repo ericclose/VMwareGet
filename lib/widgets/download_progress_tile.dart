@@ -72,13 +72,13 @@ class DownloadProgressTile extends StatelessWidget {
       case DownloadStatus.queued:
         bg = colorScheme.surfaceContainerHighest;
         fg = colorScheme.onSurfaceVariant;
-        label = 'Queued';
+        label = l10n.statusQueued;
         icon = Icons.hourglass_top_rounded;
         break;
       case DownloadStatus.cancelled:
         bg = colorScheme.surfaceContainerHighest;
         fg = colorScheme.onSurfaceVariant;
-        label = 'Cancelled';
+        label = l10n.statusCancelled;
         icon = Icons.cancel_outlined;
         break;
     }
@@ -198,7 +198,7 @@ class DownloadProgressTile extends StatelessWidget {
                 const Spacer(),
                 if (item.status == DownloadStatus.downloading) ...[
                   Text(
-                    'Speed: ${item.formattedSpeed}',
+                    '${l10n.speedLabel}: ${item.formattedSpeed}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -206,7 +206,7 @@ class DownloadProgressTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'ETA: ${item.estimatedRemainingTime}',
+                    '${l10n.etaLabel}: ${item.estimatedRemainingTime}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),

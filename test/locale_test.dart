@@ -46,6 +46,13 @@ void main() {
       expect(l10nEn.systemDownloadsTitle, equals('System Downloads Folder'));
       expect(l10nEn.allPlatforms, equals('All Platforms'));
       expect(l10nEn.signOut, equals('Sign Out'));
+      expect(l10nEn.broadcomAuthTitle, equals('Broadcom Authentication'));
+      expect(l10nEn.tabInAppBrowser, equals('In-App Browser'));
+      expect(l10nEn.welcomeTitle, equals('Welcome to VMwareGet'));
+      expect(l10nEn.logInWithBroadcom, equals('Log In with Broadcom'));
+      expect(l10nEn.speedLabel, equals('Speed'));
+      expect(l10nEn.etaLabel, equals('ETA'));
+      expect(l10nEn.recommended, equals('Recommended'));
     });
 
     test('AppLocalizations delivers pure Chinese strings in Chinese mode', () {
@@ -59,6 +66,13 @@ void main() {
       expect(l10nZh.systemDownloadsTitle, equals('系统下载目录'));
       expect(l10nZh.allPlatforms, equals('全部平台'));
       expect(l10nZh.signOut, equals('退出登录'));
+      expect(l10nZh.broadcomAuthTitle, equals('Broadcom 账户认证'));
+      expect(l10nZh.tabInAppBrowser, equals('内置安全浏览器'));
+      expect(l10nZh.welcomeTitle, equals('欢迎使用 VMwareGet'));
+      expect(l10nZh.logInWithBroadcom, equals('使用 Broadcom 账号登录'));
+      expect(l10nZh.speedLabel, equals('速度'));
+      expect(l10nZh.etaLabel, equals('剩余时间'));
+      expect(l10nZh.recommended, equals('推荐'));
     });
   });
 }

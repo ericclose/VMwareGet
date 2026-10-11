@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 
@@ -38,9 +39,10 @@ class _LoginDialogState extends State<LoginDialog> {
   }
 
   void _loginWithInApp() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isSubmitting = true;
-      _inAppStatus = 'Launching in-app secure portal...';
+      _inAppStatus = l10n.authenticatingInApp;
     });
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -78,12 +80,13 @@ class _LoginDialogState extends State<LoginDialog> {
   }
 
   void _pasteFromClipboard() async {
+    final l10n = AppLocalizations.of(context);
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim();
     if (text == null || text.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clipboard is empty')),
+          SnackBar(content: Text(l10n.clipboardEmpty)),
         );
       }
       return;
@@ -106,7 +109,7 @@ class _LoginDialogState extends State<LoginDialog> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Session payload pasted from clipboard!'),
+          content: Text(l10n.payloadPasted),
           backgroundColor: Theme.of(context).colorScheme.primary,
           duration: const Duration(seconds: 2),
         ),
@@ -138,15 +141,14 @@ class _LoginDialogState extends State<LoginDialog> {
   }
 
   void _copyCookieBookmarklet() async {
+    final l10n = AppLocalizations.of(context);
     const script =
         "javascript:navigator.clipboard.writeText(document.cookie);alert('Broadcom session cookies copied! Switch to VMwareGet and click Paste.');";
     await Clipboard.setData(const ClipboardData(text: script));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'Cookie capture helper copied! Paste into browser console or bookmark bar on Broadcom page.',
-          ),
+          content: Text(l10n.cookieHelperCopied),
           backgroundColor: Theme.of(context).colorScheme.tertiary,
           duration: const Duration(seconds: 4),
         ),
@@ -205,6 +207,7 @@ class _LoginDialogState extends State<LoginDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Dialog(
@@ -240,13 +243,13 @@ class _LoginDialogState extends State<LoginDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Broadcom Authentication',
+                              l10n.broadcomAuthTitle,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'Connect your official Broadcom session',
+                              l10n.broadcomAuthSubtitle,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -262,16 +265,16 @@ class _LoginDialogState extends State<LoginDialog> {
                   SizedBox(
                     width: double.infinity,
                     child: SegmentedButton<int>(
-                      segments: const [
+                      segments: [
                         ButtonSegment<int>(
                           value: 0,
-                          icon: Icon(Icons.language_rounded, size: 16),
-                          label: Text('In-App Browser'),
+                          icon: const Icon(Icons.language_rounded, size: 16),
+                          label: Text(l10n.tabInAppBrowser),
                         ),
                         ButtonSegment<int>(
                           value: 1,
-                          icon: Icon(Icons.code_rounded, size: 16),
-                          label: Text('Manual / cURL Import'),
+                          icon: const Icon(Icons.code_rounded, size: 16),
+                          label: Text(l10n.tabManualImport),
                         ),
                       ],
                       selected: {_selectedTab},
@@ -287,9 +290,9 @@ class _LoginDialogState extends State<LoginDialog> {
                   const SizedBox(height: 16),
 
                   if (_selectedTab == 0)
-                    _buildInAppBrowserTab(context, theme, colorScheme, authProvider)
+                    _buildInAppBrowserTab(context, theme, colorScheme, authProvider, l10n)
                   else
-                    _buildManualImportTab(context, theme, colorScheme, authProvider),
+                    _buildManualImportTab(context, theme, colorScheme, authProvider, l10n),
                 ],
               ),
             ),
@@ -304,6 +307,7 @@ class _LoginDialogState extends State<LoginDialog> {
     ThemeData theme,
     ColorScheme colorScheme,
     AuthProvider authProvider,
+    AppLocalizations l10n,
   ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -351,7 +355,7 @@ class _LoginDialogState extends State<LoginDialog> {
                         Row(
                           children: [
                             Text(
-                              'In-App Browser Login',
+                              l10n.inAppBrowserTitle,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -364,9 +368,9 @@ class _LoginDialogState extends State<LoginDialog> {
                                 color: Colors.green.shade700,
                                 borderRadius: BorderRadius.circular(5),
                               ),
-                              child: const Text(
-                                'RECOMMENDED',
-                                style: TextStyle(
+                              child: Text(
+                                l10n.recommended.toUpperCase(),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
@@ -378,7 +382,7 @@ class _LoginDialogState extends State<LoginDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Opens secure WKWebView window & auto-captures session upon login',
+                          l10n.inAppBrowserDesc,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                             fontSize: 12,
@@ -428,8 +432,8 @@ class _LoginDialogState extends State<LoginDialog> {
                   icon: const Icon(Icons.open_in_browser_rounded, size: 18),
                   label: Text(
                     _isSubmitting
-                        ? 'Authenticating in-app...'
-                        : 'Sign In via In-App Browser',
+                        ? l10n.authenticatingInApp
+                        : l10n.signInViaInApp,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   onPressed: _isSubmitting ? null : _loginWithInApp,
@@ -443,13 +447,13 @@ class _LoginDialogState extends State<LoginDialog> {
           children: [
             TextButton.icon(
               icon: const Icon(Icons.bolt_rounded, size: 16),
-              label: const Text('Instant Demo Session', style: TextStyle(fontSize: 12)),
+              label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
               onPressed: _isSubmitting ? null : _useQuickDemoSession,
             ),
             const SizedBox(width: 4),
             TextButton.icon(
               icon: const Icon(Icons.launch_rounded, size: 14),
-              label: const Text('External Browser', style: TextStyle(fontSize: 12)),
+              label: Text(l10n.externalBrowser, style: const TextStyle(fontSize: 12)),
               onPressed: _isSubmitting
                   ? null
                   : () => authProvider.openBroadcomLoginPortal(),
@@ -457,7 +461,7 @@ class _LoginDialogState extends State<LoginDialog> {
             const Spacer(),
             TextButton(
               onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
           ],
         ),
@@ -470,6 +474,7 @@ class _LoginDialogState extends State<LoginDialog> {
     ThemeData theme,
     ColorScheme colorScheme,
     AuthProvider authProvider,
+    AppLocalizations l10n,
   ) {
     return Form(
       key: _formKey,
@@ -481,7 +486,7 @@ class _LoginDialogState extends State<LoginDialog> {
             children: [
               OutlinedButton.icon(
                 icon: const Icon(Icons.content_paste_rounded, size: 14),
-                label: const Text('Paste from Clipboard', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.pasteFromClipboard, style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -491,7 +496,7 @@ class _LoginDialogState extends State<LoginDialog> {
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.copy_rounded, size: 14),
-                label: const Text('Copy Helper Snippet', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.copyHelperSnippet, style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -520,7 +525,7 @@ class _LoginDialogState extends State<LoginDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Import active session from local Playwright test cache',
+                        l10n.importPlaywrightSession,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSecondaryContainer,
                           fontWeight: FontWeight.w600,
@@ -537,20 +542,20 @@ class _LoginDialogState extends State<LoginDialog> {
           const SizedBox(height: 12),
           TextFormField(
             controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Account Email',
-              prefixIcon: Icon(Icons.email_outlined, size: 18),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.accountEmailLabel,
+              prefixIcon: const Icon(Icons.email_outlined, size: 18),
+              border: const OutlineInputBorder(),
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
-                return 'Please enter your email';
+                return l10n.emailRequired;
               }
               if (!val.contains('@')) {
-                return 'Enter a valid email address';
+                return l10n.emailInvalid;
               }
               return null;
             },
@@ -558,18 +563,18 @@ class _LoginDialogState extends State<LoginDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _tokenController,
-            decoration: const InputDecoration(
-              labelText: 'Broadcom Cookie String or cURL Command',
-              hintText: 'Paste Cookie or cURL',
-              prefixIcon: Icon(Icons.token_outlined, size: 18),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.tokenLabel,
+              hintText: l10n.tokenHint,
+              prefixIcon: const Icon(Icons.token_outlined, size: 18),
+              border: const OutlineInputBorder(),
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             maxLines: 2,
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
-                return 'Please enter your session cookie or token';
+                return l10n.tokenRequired;
               }
               return null;
             },
@@ -579,13 +584,13 @@ class _LoginDialogState extends State<LoginDialog> {
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.bolt_rounded, size: 16),
-                label: const Text('Instant Demo Session', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
                 onPressed: _isSubmitting ? null : _useQuickDemoSession,
               ),
               const Spacer(),
               TextButton(
                 onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               const SizedBox(width: 8),
               FilledButton(
@@ -596,7 +601,7 @@ class _LoginDialogState extends State<LoginDialog> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Connect Session'),
+                    : Text(l10n.connectSession),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../models/vmware_product.dart';
 
 class ProductCard extends StatelessWidget {
@@ -42,6 +43,7 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Card(
@@ -111,7 +113,7 @@ class ProductCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            'Build ${release.buildNumber}',
+                            '${l10n.buildNumber} ${release.buildNumber}',
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
@@ -192,7 +194,7 @@ class ProductCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 3),
                               Text(
-                                'Live',
+                                l10n.liveBadge,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,

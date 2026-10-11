@@ -22,10 +22,11 @@ class MetadataPanel extends StatelessWidget {
   });
 
   void _copyToClipboard(BuildContext context, String label, String text) {
+    final l10n = AppLocalizations.of(context);
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label copied to clipboard!'),
+        content: Text(l10n.copiedToClipboard(label)),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -53,7 +54,7 @@ class MetadataPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Select a release to inspect technical metadata',
+              l10n.selectReleaseToInspect,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -112,7 +113,7 @@ class MetadataPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.platformLabel} • Build ${item.buildNumber} • ${item.fileSize}',
+                      '${item.platformLabel} • ${l10n.buildNumber} ${item.buildNumber} • ${item.fileSize}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -134,9 +135,9 @@ class MetadataPanel extends StatelessWidget {
                 ),
               ),
               icon: const Icon(Icons.download_rounded),
-              label: const Text(
-                'Download Installer Package',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              label: Text(
+                l10n.downloadPackage,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
               onPressed: () async {
                 final confirmed = await DownloadDirDialog.showIfNeeded(context);
@@ -181,15 +182,15 @@ class MetadataPanel extends StatelessWidget {
                       children: [
                         Text(
                           downloadItem.status == DownloadStatus.completed
-                              ? 'Package Downloaded'
-                              : 'Downloading (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
+                              ? l10n.packageDownloaded
+                              : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           downloadItem.status == DownloadStatus.completed
-                              ? 'Verified against SHA256 & MD5'
+                              ? l10n.verifiedAgainstChecksums
                               : downloadItem.formattedSpeed,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
@@ -214,7 +215,7 @@ class MetadataPanel extends StatelessWidget {
                   ],
                   FilledButton.tonal(
                     onPressed: onNavigateToDownloads,
-                    child: const Text('View Manager'),
+                    child: Text(l10n.viewManager),
                   ),
                 ],
               ),
@@ -235,7 +236,7 @@ class MetadataPanel extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Technical Metadata Specification',
+                l10n.techMetadataSpec,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -248,13 +249,13 @@ class MetadataPanel extends StatelessWidget {
           _buildMetadataCard(
             context,
             icon: Icons.insert_drive_file_outlined,
-            title: 'File Name',
+            title: l10n.fileName,
             value: item.fileName,
             action: IconButton(
-              tooltip: 'Copy File Name',
+              tooltip: l10n.copyLabel(l10n.fileName),
               icon: const Icon(Icons.copy_rounded, size: 16),
               onPressed: () =>
-                  _copyToClipboard(context, 'File Name', item.fileName),
+                  _copyToClipboard(context, l10n.fileName, item.fileName),
             ),
           ),
           const SizedBox(height: 8),
@@ -266,7 +267,7 @@ class MetadataPanel extends StatelessWidget {
                 child: _buildMetadataCard(
                   context,
                   icon: Icons.calendar_today_rounded,
-                  title: 'Release Date',
+                  title: l10n.releaseDate,
                   value: item.releaseDate,
                 ),
               ),
@@ -275,7 +276,7 @@ class MetadataPanel extends StatelessWidget {
                 child: _buildMetadataCard(
                   context,
                   icon: Icons.update_rounded,
-                  title: 'Last Updated',
+                  title: l10n.lastUpdated,
                   value: item.lastUpdated,
                 ),
               ),
@@ -293,7 +294,7 @@ class MetadataPanel extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Cryptographic Checksums',
+                l10n.cryptographicChecksums,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -304,7 +305,7 @@ class MetadataPanel extends StatelessWidget {
 
           // SHA-256 Checksum Badge
           ChecksumBadge(
-            label: 'SHA2 (SHA-256)',
+            label: l10n.sha256Checksum,
             checksum: item.sha256,
             icon: Icons.shield_outlined,
           ),
@@ -312,7 +313,7 @@ class MetadataPanel extends StatelessWidget {
 
           // MD5 Checksum Badge
           ChecksumBadge(
-            label: 'MD5 Checksum',
+            label: l10n.md5Checksum,
             checksum: item.md5,
             icon: Icons.fingerprint_outlined,
           ),
@@ -342,7 +343,7 @@ class MetadataPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Licensing & Entitlement Note',
+                        l10n.licensingNote,
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -369,7 +370,7 @@ class MetadataPanel extends StatelessWidget {
               minimumSize: const Size.fromHeight(40),
             ),
             icon: const Icon(Icons.open_in_new_rounded, size: 16),
-            label: const Text('View on Broadcom Support Portal'),
+            label: Text(l10n.viewOnBroadcomPortal),
             onPressed: () {
               final uri = Uri.parse(item.officialDownloadUrl);
               launchUrl(uri, mode: LaunchMode.externalApplication);

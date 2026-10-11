@@ -4,6 +4,7 @@ import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
+import '../widgets/diagnostic_dialog.dart';
 import 'login_dialog.dart';
 import 'metadata_panel.dart';
 
@@ -88,6 +89,12 @@ class CatalogView extends StatelessWidget {
                       final session = Provider.of<AuthProvider>(context, listen: false).currentSession;
                       catalog.refreshFromOnline(session);
                     },
+            ),
+            const SizedBox(width: 4),
+            IconButton.filledTonal(
+              tooltip: 'Diagnostics & Live Logs (诊断日志)',
+              icon: const Icon(Icons.bug_report_rounded, size: 19),
+              onPressed: () => DiagnosticDialog.show(context),
             ),
             if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
               const SizedBox(width: 4),
@@ -307,6 +314,11 @@ class CatalogView extends StatelessWidget {
                       builder: (_) => const LoginDialog(),
                     );
                   },
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.bug_report_rounded, size: 16),
+                  label: const Text('Diagnostics (诊断日志)'),
+                  onPressed: () => DiagnosticDialog.show(context),
                 ),
               ],
             ),

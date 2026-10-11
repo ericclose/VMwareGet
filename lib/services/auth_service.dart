@@ -9,22 +9,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/auth_session.dart';
 import '../utils/constants.dart';
+import 'diagnostic_service.dart';
 
 class AuthService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Future<AuthSession?> loadSession() async {
+    DiagnosticService.instance.info('Auth', 'Attempting to load persisted session...');
     String? jsonStr;
     try {
       jsonStr = await _secureStorage.read(key: AppConstants.storageKeySession);
-    } catch (_) {}
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        DiagnosticService.instance.info('Auth', 'Session loaded from FlutterSecureStorage');
+      }
+    } catch (e) {
+      DiagnosticService.instance.warn('Auth', 'SecureStorage read error: $e');
+    }
 
     // Fallback if secure storage returned null or threw on macOS/sandboxed environments
     if (jsonStr == null || jsonStr.isEmpty) {
       try {
         final prefs = await SharedPreferences.getInstance();
         jsonStr = prefs.getString(AppConstants.storageKeySession);
-      } catch (_) {}
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          DiagnosticService.instance.info('Auth', 'Session loaded from SharedPreferences fallback');
+        }
+      } catch (e) {
+        DiagnosticService.instance.warn('Auth', 'SharedPreferences read error: $e');
+      }
     }
 
     if (jsonStr != null && jsonStr.isNotEmpty) {
@@ -32,14 +44,22 @@ class AuthService {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         final session = AuthSession.fromJson(data);
         if (session.isValid) {
+          DiagnosticService.instance.info('Auth', 'Persisted session is valid for user: ${session.email} (${session.displayName})');
           return session;
+        } else {
+          DiagnosticService.instance.warn('Auth', 'Persisted session expired at: ${session.expiresAt}');
         }
-      } catch (_) {}
+      } catch (e) {
+        DiagnosticService.instance.error('Auth', 'Error decoding stored session JSON: $e');
+      }
+    } else {
+      DiagnosticService.instance.info('Auth', 'No persisted session found');
     }
     return null;
   }
 
   Future<void> saveSession(AuthSession session) async {
+    DiagnosticService.instance.info('Auth', 'Persisting session for: ${session.email} (expires: ${session.expiresAt})');
     final jsonStr = jsonEncode(session.toJson());
     try {
       await _secureStorage.write(
@@ -105,7 +125,13 @@ class AuthService {
       }
     }
 
-    return map.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    final compiled = map.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    DiagnosticService.instance.info(
+      'CookieJar',
+      'Compiled ${map.length} unique Broadcom cookies (has JSESSIONID: ${map.containsKey('JSESSIONID')}, sspsession: ${map.containsKey('sspsession')})',
+      'Keys: ${map.keys.join(', ')}',
+    );
+    return compiled;
   }
 
   /// Deduplicates manual cookie string by cookie name
@@ -507,6 +533,12 @@ class AuthService {
             tokenOrCookie: cleanCookieHeader,
             displayName: displayName,
             csrfToken: csrf,
+          );
+
+          DiagnosticService.instance.info(
+            'Auth',
+            'In-App WebView session captured! User: $userEmail ($displayName), CSRF: $csrf',
+            'apiVerified=$apiVerified, hasAuthUser=$hasAuthUser, hasProducts=$hasProductsOnPage',
           );
 
           onStatusUpdate?.call('Login successful! Session captured.');

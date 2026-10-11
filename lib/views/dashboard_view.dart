@@ -5,6 +5,7 @@ import '../providers/catalog_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/diagnostic_dialog.dart';
 import 'catalog_view.dart';
 import 'downloads_view.dart';
 import 'login_dialog.dart';
@@ -170,6 +171,8 @@ class _DashboardViewState extends State<DashboardView> {
                   onSelected: (value) async {
                     if (value == 'settings') {
                       setState(() => _currentIndex = 2);
+                    } else if (value == 'diagnostics') {
+                      DiagnosticDialog.show(context);
                     } else if (value == 'logout') {
                       final catalogProvider = Provider.of<CatalogProvider>(context, listen: false);
                       final messenger = ScaffoldMessenger.of(context);
@@ -234,6 +237,16 @@ class _DashboardViewState extends State<DashboardView> {
                           Icon(Icons.manage_accounts_rounded, size: 18),
                           SizedBox(width: 10),
                           Text('Session Details (会话详情)'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'diagnostics',
+                      child: Row(
+                        children: [
+                          Icon(Icons.bug_report_rounded, size: 18),
+                          SizedBox(width: 10),
+                          Text('Diagnostic Logs (诊断日志)'),
                         ],
                       ),
                     ),

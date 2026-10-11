@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/diagnostic_service.dart';
 import '../utils/constants.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/diagnostic_dialog.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -133,6 +136,87 @@ class SettingsView extends StatelessWidget {
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Diagnostics Section
+            Text(
+              'Technical Diagnostics & Live Logs',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.bug_report_rounded,
+                            size: 22,
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Full-Pipeline Troubleshooting Logs',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Capture & inspect SSO cookies, CSRF tokens, and Broadcom REST endpoints',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        FilledButton.tonalIcon(
+                          icon: const Icon(Icons.analytics_outlined, size: 16),
+                          label: const Text('View Diagnostic Logs (查看诊断)'),
+                          onPressed: () => DiagnosticDialog.show(context),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.copy_rounded, size: 16),
+                          label: const Text('Copy All Logs (一键复制)'),
+                          onPressed: () {
+                            final text = DiagnosticService.instance.exportFormattedLogs();
+                            Clipboard.setData(ClipboardData(text: text));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Diagnostic report copied to clipboard!'),
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

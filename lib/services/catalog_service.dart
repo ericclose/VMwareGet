@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
 import 'auth_service.dart';
+import 'diagnostic_service.dart';
 
 class CatalogService {
   final Dio _dio;
@@ -59,6 +60,10 @@ class CatalogService {
             .map((item) =>
                 VMwareReleaseItem.fromJson(item as Map<String, dynamic>))
             .toList();
+        DiagnosticService.instance.info(
+          'Catalog',
+          'Loaded ${_releases.length} cached software releases from local storage',
+        );
         return _releases.isNotEmpty;
       }
     } catch (_) {}
@@ -70,6 +75,10 @@ class CatalogService {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = jsonEncode(_releases.map((e) => e.toJson()).toList());
       await prefs.setString('vmwareget_catalog_cache', jsonStr);
+      DiagnosticService.instance.info(
+        'Catalog',
+        'Cached ${_releases.length} software releases to local storage',
+      );
     } catch (_) {}
   }
 
@@ -99,6 +108,12 @@ class CatalogService {
         session.cookieJar ?? session.sessionToken);
     final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
 
+    DiagnosticService.instance.info(
+      'Catalog',
+      'Starting online catalog synchronization for: ${session.email}',
+      'CSRF token: $csrfHeader, Cookie keys: ${cookieHeader.split(';').map((s) => s.split('=').first.trim()).join(', ')}',
+    );
+
     final List<VMwareReleaseItem> onlineItems = [];
     _lastSyncError = null;
 
@@ -119,6 +134,12 @@ class CatalogService {
       final subFamily = prod['subFamily'] as String;
 
       try {
+        DiagnosticService.instance.http(
+          'Catalog',
+          'POST getProductSkuDetails for $subFamily',
+          'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
+        );
+
         final skuResp = await _dio.post(
           'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
           data: {
@@ -141,34 +162,65 @@ class CatalogService {
           ),
         );
 
+        DiagnosticService.instance.http(
+          'Catalog',
+          'Response getProductSkuDetails for $subFamily: HTTP ${skuResp.statusCode}',
+          'Type: ${skuResp.data.runtimeType}, Preview: ${skuResp.data.toString().length > 400 ? '${skuResp.data.toString().substring(0, 400)}...' : skuResp.data}',
+        );
+
         if (skuResp.statusCode == 302 ||
             skuResp.headers.value('location')?.contains('/login') == true) {
+          final loc = skuResp.headers.value('location') ?? '';
           _lastSyncError =
-              'Broadcom session expired or redirected to login. Please re-authenticate via In-App Browser.';
+              'Broadcom session expired or redirected to login ($loc). Please re-authenticate via In-App Browser.';
+          DiagnosticService.instance.warn('Catalog', _lastSyncError!);
           continue;
         }
 
         if (skuResp.statusCode == 403) {
           _lastSyncError =
               'Access denied by Broadcom (CSRF / security block). Please re-authenticate.';
+          DiagnosticService.instance.error('Catalog', _lastSyncError!);
           continue;
         }
 
         if (skuResp.statusCode != 200 || skuResp.data == null) {
           _lastSyncError = 'Broadcom returned HTTP ${skuResp.statusCode}.';
+          DiagnosticService.instance.warn('Catalog', _lastSyncError!);
           continue;
         }
 
         final skuData = skuResp.data is Map ? skuResp.data as Map : {};
         if (skuData['success'] != true) {
-          _lastSyncError = skuData['message']?.toString() ??
-              'Failed retrieving product SKUs from Broadcom.';
+          final errorMsg = skuData['message']?.toString() ??
+              skuData['errors']?.toString() ??
+              skuData['error']?.toString() ??
+              (skuResp.data is String
+                  ? 'Server returned non-JSON body: ${skuResp.data.toString().substring(0, 150)}'
+                  : 'Broadcom returned success=false (data: $skuData)');
+          _lastSyncError = errorMsg;
+          DiagnosticService.instance.error(
+            'Catalog',
+            'Broadcom returned success!=true for $subFamily',
+            errorMsg,
+          );
           continue;
         }
 
         final content =
             skuData['data']?['productDetails']?['content'] as List?;
-        if (content == null) continue;
+        if (content == null || content.isEmpty) {
+          DiagnosticService.instance.warn(
+            'Catalog',
+            'No productDetails content returned for $subFamily',
+          );
+          continue;
+        }
+
+        DiagnosticService.instance.info(
+          'Catalog',
+          'Found ${content.length} product groups for $subFamily',
+        );
 
         for (final groupItem in content) {
           if (groupItem is! Map) continue;
@@ -296,11 +348,21 @@ class CatalogService {
                   }
                 }
               }
-            } catch (_) {}
+            } catch (err) {
+              DiagnosticService.instance.warn(
+                'Catalog',
+                'Error fetching files for $displayGroup ($releaseVer): $err',
+              );
+            }
           }
         }
       } catch (e) {
         _lastSyncError ??= 'Error querying Broadcom API: $e';
+        DiagnosticService.instance.error(
+          'Catalog',
+          'Exception during $subFamily catalog fetch',
+          e.toString(),
+        );
       }
     }
 
@@ -308,11 +370,19 @@ class CatalogService {
       _releases = onlineItems;
       _lastSyncError = null;
       await _saveCatalogToCache();
+      DiagnosticService.instance.info(
+        'Catalog',
+        'Catalog sync successful! Retrieved ${onlineItems.length} official packages',
+      );
       return true;
     }
 
     _lastSyncError ??=
         'Broadcom session invalid or expired. Please re-authenticate via In-App Browser.';
+    DiagnosticService.instance.warn(
+      'Catalog',
+      'Catalog sync finished with 0 items: $_lastSyncError',
+    );
     return false;
   }
 }

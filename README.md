@@ -1,7 +1,7 @@
 # VMwareGet (io.github.vmwareget)
 
 > **VMware Official Release Companion & Concurrent Transfer Engine**  
-> Cross-Platform Desktop & Mobile Client engineered with Flutter (v3.47.7 pinned) and Material Design 3.
+> Cross-Platform Desktop Client engineered for PC (macOS, Windows, Linux) with Flutter (v3.47.7 pinned) and Material Design 3.
 
 ---
 
@@ -12,7 +12,7 @@
 - **应用标识 (Bundle ID):** `io.github.vmwareget`
 - **框架与运行时:** Flutter 严格锁定至 `3.47.7`，Dart `3.7+`
 - **设计系统:** Material Design 3 (MD3)，支持自适应色调种子、响应式 `NavigationRail`/`NavigationBar`、深色/浅色模式平滑切换
-- **原生支持平台:** macOS (Universal & Apple Silicon 优化)、Windows、Linux、Android
+- **原生支持平台 (PC):** macOS (Universal & Apple Silicon 优化)、Windows、Linux
 
 ---
 

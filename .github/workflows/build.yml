@@ -46,22 +46,24 @@ jobs:
           flutter config --enable-macos-desktop
           flutter build macos --release
 
-      - name: Package into DMG
+      - name: Package into DMG and ZIP
         run: |
           mkdir -p dist
           APP_PATH="build/macos/Build/Products/Release/VMwareGet.app"
           if [ -d "$APP_PATH" ]; then
             hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "$APP_PATH" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
+            ditto -c -k --keepParent "$APP_PATH" "dist/${{ env.APP_NAME }}-macOS.zip"
           else
             echo "Packaging release directory..."
             hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "build/macos/Build/Products/Release" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
+            ditto -c -k --keepParent "build/macos/Build/Products/Release" "dist/${{ env.APP_NAME }}-macOS.zip"
           fi
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: macos-dmg
-          path: dist/${{ env.APP_NAME }}-macOS.dmg
+          name: macos-artifacts
+          path: dist/*
 
   # ============================================================================
   # 2. Windows Build (.exe)
@@ -99,9 +101,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           $releasePath = "build\windows\x64\runner\Release"
-          Compress-Archive -Path "$releasePath\*" -DestinationPath "dist\${{ env.APP_NAME }}-Windows-x64.zip"
-          if (Test-Path "$releasePath\${{ env.APP_NAME }}.exe") {
-            Copy-Item "$releasePath\${{ env.APP_NAME }}.exe" -Destination "dist\${{ env.APP_NAME }}-Setup.exe"
+          if (-not (Test-Path $releasePath)) {
+            $releasePath = "build\windows\runner\Release"
+          }
+          Compress-Archive -Path "$releasePath\*" -DestinationPath "dist\${{ env.APP_NAME }}-Windows-x64.zip" -Force
+          Get-ChildItem -Path "$releasePath" -Filter "*.exe" | ForEach-Object {
+            Copy-Item $_.FullName -Destination "dist\${{ env.APP_NAME }}-Setup.exe" -Force
           }
 
       - name: Upload Windows Artifact
@@ -320,13 +325,13 @@ jobs:
       - name: Prepare APK Artifact
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ env.APP_NAME }}-Android.apk"
+          find build/app/outputs/flutter-apk -name "*.apk" -exec cp {} "dist/${{ env.APP_NAME }}-Android.apk" \;
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v7
         with:
           name: android-apk
-          path: dist/${{ env.APP_NAME }}-Android.apk
+          path: dist/*
 
   # ============================================================================
   # 6. Release Publisher
@@ -334,18 +339,26 @@ jobs:
   publish-release:
     name: Publish GitHub Release
     needs: [build-macos, build-windows, build-linux-deb, build-linux-rpm, build-android]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && !cancelled() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
         with:
-          path: release-artifacts
+          path: raw-artifacts
 
-      - name: Create Release
+      - name: Collect and flatten release assets
+        run: |
+          mkdir -p release-dist
+          echo "=== Collecting and flattening build artifacts ==="
+          find raw-artifacts -type f -exec cp -v {} release-dist/ \;
+          echo "=== Release assets ready for distribution ==="
+          ls -lh release-dist/
+
+      - name: Publish Release to GitHub Releases
         uses: softprops/action-gh-release@v3
         with:
-          files: release-artifacts/**/*
+          files: release-dist/*
           generate_release_notes: true
           draft: false
           prerelease: false

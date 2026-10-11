@@ -20,10 +20,10 @@ jobs:
   # ============================================================================
   build-macos:
     name: Build macOS (.dmg)
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -58,7 +58,7 @@ jobs:
           fi
 
       - name: Upload macOS Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-dmg
           path: dist/${{ env.APP_NAME }}-macOS.dmg
@@ -71,7 +71,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -105,7 +105,7 @@ jobs:
           }
 
       - name: Upload Windows Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-binaries
           path: dist/*
@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Linux build prerequisites
         run: |
@@ -193,7 +193,7 @@ jobs:
           dpkg-deb --build deb-pkg "dist/${{ env.APP_NAME }}-Linux-amd64.deb"
 
       - name: Upload Debian Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-deb
           path: dist/${{ env.APP_NAME }}-Linux-amd64.deb
@@ -206,7 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Linux build prerequisites and rpm tools
         run: |
@@ -280,7 +280,7 @@ jobs:
           find "$RPM_ROOT/RPMS" -name "*.rpm" -exec cp {} "dist/${{ env.APP_NAME }}-Linux-x86_64.rpm" \;
 
       - name: Upload RPM Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-rpm
           path: dist/${{ env.APP_NAME }}-Linux-x86_64.rpm
@@ -293,10 +293,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -323,7 +323,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ env.APP_NAME }}-Android.apk"
 
       - name: Upload Android Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-apk
           path: dist/${{ env.APP_NAME }}-Android.apk
@@ -338,12 +338,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-artifacts/**/*
           generate_release_notes: true

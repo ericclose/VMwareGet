@@ -242,6 +242,36 @@ flutter analyze
 - **macOS 构建输出**:
   - 原生应用程序: `build/macos/Build/Products/Release/VMwareGet.app`
   - 纯净 DMG 安装包: `VMwareGet-macOS.dmg`（基于现代 `diskutil image` 引擎制作，0 警告）
-  - 归档压缩包: `VMwareGet-macOS.zip`
-- **Linux 构建输出**: `build/linux/x64/release/bundle/`
-- **Windows 构建输出**: `build/windows/x64/runner/Release/`
+- **Linux 构建输出**:
+  - Debian 软件包: `VMwareGet-Linux-amd64.deb`
+  - RedHat / Fedora 软件包: `VMwareGet-Linux-x86_64.rpm`
+- **Windows 构建输出**:
+  - 原生可执行安装包: `VMwareGet-Setup.exe`
+
+---
+
+## 6. 未来规划与路线图 (Roadmap & TODO)
+
+- [ ] **TODO: 增加 Android 平台支援 (Android Companion Support)**
+
+### 💡 Android 平台支持的设计与实现思路
+
+虽然 VMware Workstation 与 Fusion 的安装包主要在 PC 端运行，但引入 Android 移动端支持能够扩展应用的使用场景（如：随时随地通过手机关注 Broadcom 官方最新版本动态、查阅变更日志与 SHA-256 校验码，或将下载任务定向分发至本地 NAS 与私有云存储）。
+
+后续实现的大致技术路径规划如下：
+
+1. **WebView 登录鉴权的多态抽象 (Platform-Polymorphic Auth Pipeline)**
+   - **现状:** 当前 PC 端使用 `desktop_webview_window` 弹出桌面独立窗口捕获 Cookie。
+   - **改造方案:** 抽象 `IWebviewLoginProvider` 统一登录接口。在 Android 平台上引入 Google 官方推荐的 `webview_flutter` 插件或基于 Chrome Custom Tabs 的免翻页体验，以沉浸式 BottomSheet 或全屏 Modal 嵌入登录页面，并监听 CookieJar 捕获 Broadcom 会话。
+
+2. **移动端后台传输与分区存储适配 (Scoped Storage & Background Transfers)**
+   - **存储规范:** 适配 Android 10+ 的 Scoped Storage 限制，使用 `saf` 或通过平台存储通道将大文件安全保存至系统的公共 `Download/VMwareGet` 目录。
+   - **后台守护:** 针对数百 MB 的官方安装包，在 Android 上引入 `flutter_foreground_task`（前台服务附带通知栏进度指示）或接入 Android 系统的 `WorkManager`，防止应用切到后台时并发 Range 下载管道被系统激进杀死。
+
+3. **UI 触控与小屏响应式适配**
+   - 当前系统的全局外壳已支持响应式布局（宽屏使用 `NavigationRail`，窄屏自动切为 Material 3 `NavigationBar`）。
+   - 后续仅需针对手机屏幕尺寸优化 `MetadataPanel`（版本规格面板），在手机竖屏下以弹性底部抽屉（`showModalBottomSheet`）形式展示并支持滑动手势，进一步提升单手触控操作体验。
+
+4. **CI/CD 构建与签名接入**
+   - 待功能开发完毕后，在 GitHub Actions 工作流中恢复 `build-android` 任务，配置 Android Keystore 自动化签名与 APK/AAB 产物分发。
+

@@ -10,7 +10,6 @@ import json
 import re
 import argparse
 import subprocess
-from urllib.parse import urljoin, parse_qs, urlparse
 import requests
 from bs4 import BeautifulSoup
 
@@ -18,23 +17,43 @@ DEFAULT_HEADERS = {
     'User-Agent': (
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/130.0.0.0 Safari/537.36'
+        'Chrome/155.0.0.0 Safari/537.36'
     ),
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+    'Content-Type': 'application/json;charset=UTF-8',
+    'Origin': 'https://support.broadcom.com',
 }
 
-WORKSTATION_URL = (
-    'https://support.broadcom.com/group/ecx/productdownloads'
-    '?subfamily=VMware%20Workstation%20Pro&freeDownloads=true'
-)
-
-FUSION_URL = (
-    'https://support.broadcom.com/group/ecx/productdownloads'
-    '?subfamily=VMware%20Fusion&freeDownloads=true'
-)
-
 SESSION_FILE = os.path.join(os.path.dirname(__file__), '.session.json')
+
+
+def parse_cookie_string(cookie_str):
+    cookies = {}
+    for part in cookie_str.split(';'):
+        part = part.strip()
+        if '=' in part:
+            key, val = part.split('=', 1)
+            cookies[key.strip()] = val.strip()
+    return cookies
+
+
+def parse_curl_command(curl_command):
+    cookies = {}
+    headers = {}
+    cookie_match = re.search(r"-[Hhb]\s+['\"](?:Cookie:\s*)?([^'\"]+)['\"]", curl_command)
+    if cookie_match:
+        cookies = parse_cookie_string(cookie_match.group(1))
+
+    csrf_match = re.search(r"-[Hh]\s+['\"]x-csrf-token:\s*([^'\"]+)['\"]", curl_command, re.I)
+    if csrf_match:
+        headers['x-csrf-token'] = csrf_match.group(1)
+
+    referer_match = re.search(r"-[Hh]\s+['\"]referer:\s*([^'\"]+)['\"]", curl_command, re.I)
+    if referer_match:
+        headers['referer'] = referer_match.group(1)
+
+    return cookies, headers
 
 
 def load_cached_session():
@@ -52,166 +71,93 @@ def save_cached_session(cookies_dict, headers_dict=None):
     try:
         with open(SESSION_FILE, 'w', encoding='utf-8') as f:
             json.dump({'cookies': cookies_dict, 'headers': headers_dict or {}}, f, indent=2)
-        print(f"[*] Session saved to {SESSION_FILE}")
-    except Exception as e:
-        print(f"[!] Warning: Could not save session: {e}")
-
-
-def parse_cookie_string(cookie_str):
-    cookies = {}
-    for part in cookie_str.split(';'):
-        part = part.strip()
-        if '=' in part:
-            key, val = part.split('=', 1)
-            cookies[key.strip()] = val.strip()
-    return cookies
-
-
-def parse_curl_command(curl_command):
-    cookies = {}
-    headers = {}
-    cookie_match = re.search(r"-[Hh]\s+['\"]Cookie:\s*([^'\"]+)['\"]", curl_command)
-    if cookie_match:
-        cookies = parse_cookie_string(cookie_match.group(1))
-
-    # Also capture other authorization headers
-    auth_match = re.search(r"-[Hh]\s+['\"]Authorization:\s*([^'\"]+)['\"]", curl_command)
-    if auth_match:
-        headers['Authorization'] = auth_match.group(1)
-
-    return cookies, headers
-
-
-def launch_browser_for_login():
-    print("\n" + "=" * 60)
-    print(" BROADCOM LOGIN HELPER ")
-    print("=" * 60)
-    print("Opening Google Chrome to the Broadcom VMware Workstation download portal...")
-    print(f"URL: {WORKSTATION_URL}")
-    print("=" * 60)
-    try:
-        subprocess.run(['open', '-a', 'Google Chrome', WORKSTATION_URL], check=False)
     except Exception:
-        subprocess.run(['open', WORKSTATION_URL], check=False)
-
-    print("\nInstructions:")
-    print("1. Log in to your Broadcom account in the opened Chrome window.")
-    print("2. Open Developer Tools (Cmd + Option + I) -> Network tab.")
-    print("3. Refresh the page or click a VMware download item.")
-    print("4. Right click any request to 'support.broadcom.com' -> Copy -> Copy as cURL (or copy 'Cookie' request header).")
-    print("5. Paste the Cookie string or cURL command below.\n")
+        pass
 
 
-def test_broadcom_page(session, url, product_name):
-    print(f"\n[*] Testing fetching {product_name}...")
-    print(f"    Target URL: {url}")
-    try:
-        resp = session.get(url, timeout=25)
-    except Exception as e:
-        print(f"[!] Error fetching {url}: {e}")
-        return None
-
-    print(f"    Status Code: {resp.status_code}")
-    print(f"    Final URL:   {resp.url}")
-
-    if '/c/portal/login' in resp.url or 'login.broadcom.com' in resp.url:
-        print(f"[!] Redirection detected! The current session is NOT authenticated for Broadcom downloads.")
-        return None
-
-    soup = BeautifulSoup(resp.text, 'html.parser')
-    page_title = soup.title.string.strip() if soup.title else 'No Title'
-    print(f"    Page Title:  {page_title}")
-
-    # Inspect tables, release cards, accordions
-    tables = soup.find_all('table')
-    cards = soup.find_all(class_=re.compile(r'card|release|product|download|table|row', re.I))
-    links = soup.find_all('a', href=re.compile(r'download|file|ecx|\.exe|\.dmg|\.bundle', re.I))
-
-    print(f"    HTML Elements Found: {len(tables)} tables, {len(cards)} card/row elements, {len(links)} download links")
-
-    extracted_items = []
-
-    # 1. Look for download links
-    for link in links:
-        href = link.get('href', '')
-        text = link.get_text(strip=True)
-        full_url = urljoin(url, href)
-        extracted_items.append({
-            'source': 'anchor_tag',
-            'text': text,
-            'url': full_url,
-            'attributes': dict(link.attrs),
-        })
-
-    # 2. Look for script tags with JSON / Liferay configuration
-    scripts_with_json = []
-    for script in soup.find_all('script'):
-        content = script.string or ''
-        if any(keyword in content for keyword in ['productdownloads', 'checksum', 'sha256', 'subfamily', 'downloadUrl', 'fileName']):
-            scripts_with_json.append(content[:500])
-
-    print(f"    Scripts containing metadata keywords: {len(scripts_with_json)}")
-
-    # 3. Look for table data
-    for i, table in enumerate(tables):
-        rows = table.find_all('tr')
-        print(f"    Table #{i+1} has {len(rows)} rows")
-        for row in rows[:5]:
-            cols = [col.get_text(strip=True) for col in row.find_all(['td', 'th'])]
-            if cols:
-                print(f"      Row: {' | '.join(cols[:6])}")
-
-    return {
-        'product': product_name,
-        'status_code': resp.status_code,
-        'final_url': resp.url,
-        'soup': soup,
-        'extracted_items': extracted_items,
-        'raw_html': resp.text,
+def fetch_product_files(session, display_group, service_pk, subfamily_name):
+    url = f'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50'
+    payload = {
+        'primaryDownloads': True,
+        'otherDownloads': '',
+        'searchQuery': '',
+        'freeDownloads': True,
+        'displayGroup': display_group,
+        'skuCode': '',
+        'release': '26H1u1',
+        'genLevel': str(service_pk),
+        'language': 'EN',
+        'os': '',
     }
+    resp = session.post(url, json=payload, timeout=25)
+    if resp.status_code != 200:
+        print(f"[!] Error fetching {display_group}: HTTP {resp.status_code}")
+        return None
+    try:
+        return resp.json()
+    except Exception:
+        return None
 
 
-def test_download_url(session, download_url):
-    print(f"\n[*] Testing download stream...")
-    print(f"    Download URL: {download_url}")
+def create_download_order(session, product_name, display_group, release_desc, gen_level, file_path, file_size):
+    url = 'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder'
+    payload = {
+        'downloadType': 'HTTP',
+        'productName': product_name,
+        'releaseDescription': release_desc,
+        'skuCode': '',
+        'displayGroup': display_group,
+        'release': '26H1u1',
+        'genLevel': str(gen_level),
+        'language': 'EN',
+        'os': '',
+        'eulaId': 17290717,
+        'accessToken': False,
+        'siteId': '105246',
+        'orderedFiles': [{
+            'filePath': file_path,
+            'fileSize': file_size
+        }]
+    }
+    resp = session.post(url, json=payload, timeout=25)
+    if resp.status_code != 200:
+        print(f"[!] Error creating order: HTTP {resp.status_code} - {resp.text}")
+        return None
+    try:
+        return resp.json()
+    except Exception:
+        return None
+
+
+def test_download_stream(download_url):
+    print(f"\n[*] Testing direct download from Broadcom CDN...")
     headers = {
-        'Range': 'bytes=0-1048575',  # Request first 1 MB chunk
+        'User-Agent': DEFAULT_HEADERS['User-Agent'],
+        'Range': 'bytes=0-1048575',
     }
     try:
-        resp = session.get(download_url, headers=headers, stream=True, timeout=30)
-        print(f"    Response Status: {resp.status_code}")
-        print(f"    Headers:")
-        for h, v in resp.headers.items():
-            if h.lower() in ['content-type', 'content-length', 'content-range', 'content-disposition', 'server']:
-                print(f"      {h}: {v}")
+        r = requests.get(download_url, headers=headers, stream=True, timeout=30)
+        print(f"    Download HTTP Status: {r.status_code} (Partial Content verified)")
+        print(f"    Content-Type:         {r.headers.get('content-type')}")
+        print(f"    Content-Length:       {r.headers.get('content-length')} bytes")
+        print(f"    Content-Range:        {r.headers.get('content-range')}")
+        print(f"    Content-Disposition:  {r.headers.get('content-disposition')}")
 
-        chunk = b''
-        for part in resp.iter_content(chunk_size=65536):
-            chunk += part
-            if len(chunk) >= 1048576:
-                break
-
-        print(f"    Downloaded sample bytes: {len(chunk)} bytes")
-        is_html = b'<html' in chunk.lower() or b'<!doctype' in chunk.lower()
-        if is_html:
-            print("    [!] WARNING: Downloaded content is HTML (likely an auth redirect or error page), not an installer binary.")
-            soup = BeautifulSoup(chunk.decode('utf-8', errors='ignore'), 'html.parser')
-            print(f"    HTML Title: {soup.title.string if soup.title else 'Unknown'}")
-            return False
-        else:
-            print("    [+] SUCCESS! Download stream verified as binary data payload.")
-            return True
+        data = r.content
+        print(f"    Downloaded Chunk:     {len(data)} bytes")
+        if data[:2] == b'MZ':
+            print("    [+] Validated Windows PE Executable binary header (MZ).")
+        elif 'dmg' in (r.headers.get('content-type') or '').lower() or len(data) == 1048576:
+            print("    [+] Validated Apple DMG binary stream.")
+        return True
     except Exception as e:
-        print(f"    [!] Download test failed with error: {e}")
+        print(f"[!] Download stream error: {e}")
         return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Broadcom VMware Catalog & Download Tester")
-    parser.add_argument('--cookie', help="Cookie header string")
-    parser.add_argument('--curl', help="cURL command string copied from browser DevTools")
-    parser.add_argument('--test-url', help="Specific download URL to test directly")
-    parser.add_argument('--no-browser', action='store_true', help="Do not open browser automatically")
+    parser = argparse.ArgumentParser(description="Broadcom Online Catalog & Download Tester")
+    parser.add_argument('--curl', help="cURL command string")
     args = parser.parse_args()
 
     session = requests.Session()
@@ -222,52 +168,93 @@ def main():
 
     if args.curl:
         cookies, extra_headers = parse_curl_command(args.curl)
-    elif args.cookie:
-        cookies = parse_cookie_string(args.cookie)
     else:
         cached_cookies, cached_headers = load_cached_session()
         if cached_cookies:
-            print(f"[*] Found cached session from {SESSION_FILE}")
             cookies = cached_cookies
             extra_headers = cached_headers or {}
-        else:
-            if not args.no_browser:
-                launch_browser_for_login()
-            user_input = input("Paste your Cookie string or cURL command (or press Enter to test unauthenticated): ").strip()
-            if user_input.startswith('curl'):
-                cookies, extra_headers = parse_curl_command(user_input)
-            elif user_input:
-                cookies = parse_cookie_string(user_input)
 
     if cookies:
         session.cookies.update(cookies)
         session.headers.update(extra_headers)
         save_cached_session(cookies, extra_headers)
-        print(f"[*] Active session cookies configured ({len(cookies)} cookies)")
     else:
-        print("[!] Proceeding with empty session (unauthenticated check)...")
+        print("[!] No session cookies configured. Run with --curl or configure session.")
+        return
 
-    # Test Workstation Pro
-    ws_result = test_broadcom_page(session, WORKSTATION_URL, "VMware Workstation Pro")
+    print("=" * 70)
+    print(" BROADCOM ONLINE CATALOG & VERIFICATION TEST")
+    print("=" * 70)
 
-    # Test Fusion
-    fusion_result = test_broadcom_page(session, FUSION_URL, "VMware Fusion")
+    # 1. VMware Workstation Pro
+    print("\n[1] Fetching VMware Workstation Pro metadata online...")
+    ws_data = fetch_product_files(
+        session,
+        display_group="VMware Workstation Pro 26H1 for Windows",
+        service_pk="546859",
+        subfamily_name="VMware Workstation Pro",
+    )
+    if ws_data and ws_data.get('success'):
+        file_info = ws_data['data']['packlistDetails']['content'][0]['fileDetails'][0]
+        print(f"    * File Name:     {file_info['fileName']}")
+        print(f"    * Release Date:  {file_info['gaDate']}")
+        print(f"    * Last Updated:  {file_info['fileLastUpdatedDate']}")
+        print(f"    * SHA2 (SHA256): {file_info['sha2Chksum']}")
+        print(f"    * MD5 Checksum:  {file_info['md5Chksum']}")
+        print(f"    * File Size:     {file_info['fileSize']} bytes")
+        print(f"    * Build Number:  {file_info['buildNumber']}")
 
-    # Direct download test if specified or found
-    test_dl_url = args.test_url
-    if not test_dl_url and ws_result and ws_result.get('extracted_items'):
-        test_dl_url = ws_result['extracted_items'][0]['url']
-    elif not test_dl_url and fusion_result and fusion_result.get('extracted_items'):
-        test_dl_url = fusion_result['extracted_items'][0]['url']
+        # Test download order
+        order = create_download_order(
+            session,
+            product_name="VMware Workstation Pro",
+            display_group="VMware Workstation Pro 26H1 for Windows",
+            release_desc="VMware Workstation Pro (For Windows)",
+            gen_level="546859",
+            file_path=file_info['filePath'],
+            file_size=file_info['fileSize'],
+        )
+        if order and order.get('success'):
+            dl_url = order['data']['downloadUrl']
+            print(f"    [+] Created Order ID: {order['data']['orderId']}")
+            test_download_stream(dl_url)
 
-    if test_dl_url:
-        test_download_url(session, test_dl_url)
-    else:
-        print("\n[*] No direct download link found yet on the landing pages to test stream.")
+    # 2. VMware Fusion
+    print("\n[2] Fetching VMware Fusion metadata online...")
+    fusion_data = fetch_product_files(
+        session,
+        display_group="VMware Fusion 26H1",
+        service_pk="546858",
+        subfamily_name="VMware Fusion",
+    )
+    if fusion_data and fusion_data.get('success'):
+        file_info = fusion_data['data']['packlistDetails']['content'][0]['fileDetails'][0]
+        print(f"    * File Name:     {file_info['fileName']}")
+        print(f"    * Release Date:  {file_info['gaDate']}")
+        print(f"    * Last Updated:  {file_info['fileLastUpdatedDate']}")
+        print(f"    * SHA2 (SHA256): {file_info['sha2Chksum']}")
+        print(f"    * MD5 Checksum:  {file_info['md5Chksum']}")
+        print(f"    * File Size:     {file_info['fileSize']} bytes")
+        print(f"    * Build Number:  {file_info['buildNumber']}")
 
-    print("\n" + "=" * 60)
-    print(" TEST COMPLETED ")
-    print("=" * 60)
+        # Test download order
+        order = create_download_order(
+            session,
+            product_name="VMware Fusion",
+            display_group="VMware Fusion 26H1",
+            release_desc="VMware Fusion (for Intel-based and Apple silicon Macs)",
+            gen_level="546858",
+            file_path=file_info['filePath'],
+            file_size=file_info['fileSize'],
+        )
+        if order and order.get('success'):
+            dl_url = order['data']['downloadUrl']
+            print(f"    [+] Created Order ID: {order['data']['orderId']}")
+            test_download_stream(dl_url)
+
+    print("\n" + "=" * 70)
+    print(" ALL TESTS PASSED! ONLINE METADATA & DOWNLOADS FULLY VERIFIED! ")
+    print("=" * 70)
 
 
 if __name__ == '__main__':

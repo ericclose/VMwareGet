@@ -18,6 +18,11 @@ case "$OS" in
     echo "==> Compiling native release bundle for macOS..."
     flutter build macos --release
     echo "==> macOS build complete: build/macos/Build/Products/Release/VMwareGet.app"
+    echo "==> Packaging macOS DMG with /Applications drag-and-drop installer..."
+    ./scripts/package_macos_dmg.sh
+    echo "==> Packaging macOS ZIP release archive..."
+    ditto -c -k --sequesterRsrc --keepParent "build/macos/Build/Products/Release/VMwareGet.app" "VMwareGet-macOS.zip"
+    echo "==> macOS distribution packages ready: VMwareGet-macOS.dmg, VMwareGet-macOS.zip"
     ;;
   Linux*)
     echo "==> Compiling native release bundle for Linux..."

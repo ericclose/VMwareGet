@@ -75,3 +75,10 @@ migrate_working_dir/
 
 # Coverage
 coverage/
+
+# Python Tools & Session Testing
+.venv/
+*.session.json
+tools/scraped_catalog.json
+tools/*.bin
+*.incomplete

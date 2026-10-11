@@ -90,4 +90,31 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> openBroadcomRegistrationPortal() async {
     return await _authService.launchBroadcomRegister();
   }
+
+  Future<bool> loadLocalTestSession() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final testData = await _authService.loadSessionFromLocalTestFile();
+      if (testData != null && testData['cookie']?.isNotEmpty == true) {
+        final email = testData['email']?.isNotEmpty == true
+            ? testData['email']!
+            : 'ZetaGo@protonmail.com';
+        return await loginWithManualToken(
+          email: email,
+          token: testData['cookie']!,
+        );
+      }
+      _errorMessage = 'No verified session found in tools/.session.json';
+      return false;
+    } catch (e) {
+      _errorMessage = 'Failed importing session: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

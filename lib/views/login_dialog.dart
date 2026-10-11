@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
@@ -15,12 +18,106 @@ class _LoginDialogState extends State<LoginDialog> {
   final _tokenController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+  bool _hasLocalTestSession = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLocalTestSession();
+  }
+
+  void _checkLocalTestSession() async {
+    if (kIsWeb) return;
+    try {
+      final file = File('tools/.session.json');
+      if (await file.exists()) {
+        setState(() => _hasLocalTestSession = true);
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _tokenController.dispose();
     super.dispose();
+  }
+
+  void _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Clipboard is empty')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _tokenController.text = text;
+      // Auto-extract email if present in cURL or text
+      if (_emailController.text.isEmpty) {
+        final emailMatch =
+            RegExp(r'[\w\.-]+@[\w\.-]+\.\w+').firstMatch(text);
+        if (emailMatch != null) {
+          _emailController.text = emailMatch.group(0)!;
+        } else {
+          _emailController.text = 'engineer@developer.broadcom.com';
+        }
+      }
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Session payload pasted from clipboard!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _importFromPlaywrightSession() async {
+    setState(() => _isSubmitting = true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    final success = await authProvider.loadLocalTestSession();
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      if (success) {
+        final catalog = Provider.of<CatalogProvider>(context, listen: false);
+        catalog.refreshFromOnline(authProvider.currentSession);
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ??
+                'No verified session found in tools/.session.json'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _copyCookieBookmarklet() async {
+    const script =
+        "javascript:navigator.clipboard.writeText(document.cookie);alert('Broadcom session cookies copied! Switch to VMwareGet and click Paste.');";
+    await Clipboard.setData(const ClipboardData(text: script));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Cookie capture helper copied! Paste into browser console or bookmark bar on Broadcom page.',
+          ),
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   void _submit() async {
@@ -77,7 +174,7 @@ class _LoginDialogState extends State<LoginDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
-        BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -112,7 +209,7 @@ class _LoginDialogState extends State<LoginDialog> {
                               ),
                             ),
                             Text(
-                              'Connect your official Broadcom account',
+                              'Connect your official Broadcom session',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -138,12 +235,12 @@ class _LoginDialogState extends State<LoginDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Step 1: Open official portal in browser',
+                          'Step 1: Authenticate in Browser',
                           style: theme.textTheme.labelMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
@@ -157,11 +254,11 @@ class _LoginDialogState extends State<LoginDialog> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.person_add_rounded,
-                                    size: 16),
-                                label: const Text('Register Account'),
-                                onPressed: () =>
-                                    authProvider.openBroadcomRegistrationPortal(),
+                                icon: const Icon(Icons.copy_rounded, size: 16),
+                                label: const Text('Copy Helper Snippet'),
+                                tooltip:
+                                    'Copy JavaScript snippet to grab cookies from browser console',
+                                onPressed: _copyCookieBookmarklet,
                               ),
                             ),
                           ],
@@ -169,18 +266,81 @@ class _LoginDialogState extends State<LoginDialog> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Step 2: Enter Session or Token Details',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  if (_hasLocalTestSession) ...[
+                    const SizedBox(height: 12),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _isSubmitting ? null : _importFromPlaywrightSession,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.secondaryContainer
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colorScheme.secondary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.auto_awesome_rounded,
+                                size: 18, color: colorScheme.secondary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Verified Session Detected',
+                                    style:
+                                        theme.textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Import active session from local Playwright test cache',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSecondaryContainer
+                                          .withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios_rounded,
+                                size: 14, color: colorScheme.secondary),
+                          ],
+                        ),
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Step 2: Session Payload',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.content_paste_rounded, size: 15),
+                        label: const Text('Paste from Clipboard'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: _pasteFromClipboard,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
-                      labelText: 'Broadcom Account Email',
+                      labelText: 'Account Email',
                       prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(),
                     ),
@@ -199,15 +359,16 @@ class _LoginDialogState extends State<LoginDialog> {
                   TextFormField(
                     controller: _tokenController,
                     decoration: const InputDecoration(
-                      labelText: 'Broadcom Session Token / Cookie / Key',
-                      hintText: 'e.g. JSESSIONID, Bearer token, or API Key',
+                      labelText: 'Broadcom Cookie String or cURL Command',
+                      hintText:
+                          'Paste Cookie: SAML_SP_SESSION_KEY=... or full cURL',
                       prefixIcon: Icon(Icons.token_outlined),
                       border: OutlineInputBorder(),
                     ),
-                    maxLines: 2,
+                    maxLines: 3,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Please enter your token or session key';
+                        return 'Please enter your session cookie or token';
                       }
                       return null;
                     },

@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -52,6 +55,62 @@ class AuthService {
     } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.storageKeySession);
+  }
+
+  Future<Map<String, dynamic>?> loadSessionFromLocalTestFile() async {
+    if (kIsWeb) return null;
+    try {
+      final file = File('tools/.session.json');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final cookies = data['cookies'] as Map<String, dynamic>? ?? {};
+        final email = data['email']?.toString() ?? '';
+        final csrf = data['headers']?['x-csrf-token']?.toString() ?? 'YaLAJUoR';
+        final cookieStr =
+            cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+        return {
+          'email': email,
+          'cookie': cookieStr,
+          'csrf': csrf,
+        };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<bool> probeSessionValidity(AuthSession session) async {
+    try {
+      final dio = Dio();
+      final cookieHeader = session.cookieJar ?? session.sessionToken;
+      final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
+      final resp = await dio.post(
+        'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50',
+        data: {
+          'primaryDownloads': true,
+          'otherDownloads': '',
+          'searchQuery': '',
+          'freeDownloads': true,
+          'displayGroup': 'VMware Workstation Pro 26H1 for Windows',
+          'skuCode': '',
+          'release': '26H1u1',
+          'genLevel': '546859',
+          'language': 'EN',
+          'os': '',
+        },
+        options: Options(
+          headers: {
+            'Cookie': cookieHeader,
+            'x-csrf-token': csrfHeader,
+            'Origin': 'https://support.broadcom.com',
+          },
+        ),
+      );
+      if (resp.statusCode == 200 && resp.data is Map && resp.data['success'] == true) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   Future<AuthSession> authenticateManual({

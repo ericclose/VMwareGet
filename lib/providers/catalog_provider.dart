@@ -91,8 +91,8 @@ class CatalogProvider extends ChangeNotifier {
     try {
       final success = await _catalogService.syncOnlineCatalog(session);
       if (success) {
-        _syncStatusMessage = 'Catalog synced live from Broadcom';
         final items = _catalogService.getReleasesForFamily(_selectedFamily);
+        _syncStatusMessage = 'Catalog synced live from Broadcom (${items.length} releases)';
         if (items.isNotEmpty) {
           _selectedRelease = items.first;
         }

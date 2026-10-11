@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
+import 'auth_service.dart';
 
 class CatalogService {
   final Dio _dio;
   List<VMwareReleaseItem> _releases = [];
+  String? _lastSyncError;
 
   CatalogService({Dio? dio})
       : _dio = dio ??
@@ -13,7 +17,8 @@ class CatalogService {
                 connectTimeout: const Duration(seconds: 20),
                 receiveTimeout: const Duration(seconds: 30),
                 followRedirects: false,
-                validateStatus: (status) => status != null && status >= 200 && status < 400,
+                validateStatus: (status) =>
+                    status != null && status >= 200 && status < 400,
                 headers: {
                   'User-Agent':
                       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
@@ -25,6 +30,7 @@ class CatalogService {
             );
 
   List<VMwareReleaseItem> getAllReleases() => List.unmodifiable(_releases);
+  String? get lastSyncError => _lastSyncError;
 
   List<VMwareReleaseItem> getReleasesForFamily(VMwareProductFamily family) {
     return _releases.where((r) => r.family == family).toList();
@@ -34,8 +40,37 @@ class CatalogService {
     _releases = List.from(items);
   }
 
-  void clearCatalog() {
+  Future<void> clearCatalog() async {
     _releases.clear();
+    _lastSyncError = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('vmwareget_catalog_cache');
+    } catch (_) {}
+  }
+
+  Future<bool> loadCachedCatalog() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('vmwareget_catalog_cache');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final list = jsonDecode(jsonStr) as List;
+        _releases = list
+            .map((item) =>
+                VMwareReleaseItem.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return _releases.isNotEmpty;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _saveCatalogToCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = jsonEncode(_releases.map((e) => e.toJson()).toList());
+      await prefs.setString('vmwareget_catalog_cache', jsonStr);
+    } catch (_) {}
   }
 
   List<VMwareReleaseItem> searchReleases({
@@ -60,10 +95,12 @@ class CatalogService {
   /// Fetches real-time catalog directly from Broadcom servers using user's session.
   /// Entire catalog and checksums are retrieved online without hardcoding.
   Future<bool> syncOnlineCatalog(AuthSession session) async {
-    final cookieHeader = session.cookieJar ?? session.sessionToken;
+    final cookieHeader = AuthService.cleanCookieString(
+        session.cookieJar ?? session.sessionToken);
     final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
 
     final List<VMwareReleaseItem> onlineItems = [];
+    _lastSyncError = null;
 
     // Dynamically discover all products and releases online from Broadcom
     final productLines = [
@@ -104,9 +141,30 @@ class CatalogService {
           ),
         );
 
-        if (skuResp.statusCode != 200 || skuResp.data == null) continue;
+        if (skuResp.statusCode == 302 ||
+            skuResp.headers.value('location')?.contains('/login') == true) {
+          _lastSyncError =
+              'Broadcom session expired or redirected to login. Please re-authenticate via In-App Browser.';
+          continue;
+        }
+
+        if (skuResp.statusCode == 403) {
+          _lastSyncError =
+              'Access denied by Broadcom (CSRF / security block). Please re-authenticate.';
+          continue;
+        }
+
+        if (skuResp.statusCode != 200 || skuResp.data == null) {
+          _lastSyncError = 'Broadcom returned HTTP ${skuResp.statusCode}.';
+          continue;
+        }
+
         final skuData = skuResp.data is Map ? skuResp.data as Map : {};
-        if (skuData['success'] != true) continue;
+        if (skuData['success'] != true) {
+          _lastSyncError = skuData['message']?.toString() ??
+              'Failed retrieving product SKUs from Broadcom.';
+          continue;
+        }
 
         final content =
             skuData['data']?['productDetails']?['content'] as List?;
@@ -241,13 +299,20 @@ class CatalogService {
             } catch (_) {}
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        _lastSyncError ??= 'Error querying Broadcom API: $e';
+      }
     }
 
     if (onlineItems.isNotEmpty) {
       _releases = onlineItems;
+      _lastSyncError = null;
+      await _saveCatalogToCache();
       return true;
     }
+
+    _lastSyncError ??=
+        'Broadcom session invalid or expired. Please re-authenticate via In-App Browser.';
     return false;
   }
 }

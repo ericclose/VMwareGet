@@ -277,21 +277,38 @@ class CatalogView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.sync_rounded, size: 18),
-              label: const Text('Sync Online Catalog'),
-              onPressed: () {
-                final auth =
-                    Provider.of<AuthProvider>(context, listen: false);
-                if (auth.isAuthenticated) {
-                  catalog.refreshFromOnline(auth.currentSession);
-                } else {
-                  showDialog(
-                    context: context,
-                    builder: (_) => const LoginDialog(),
-                  );
-                }
-              },
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  icon: const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text('Sync Online Catalog'),
+                  onPressed: () {
+                    final auth =
+                        Provider.of<AuthProvider>(context, listen: false);
+                    if (auth.isAuthenticated) {
+                      catalog.refreshFromOnline(auth.currentSession);
+                    } else {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const LoginDialog(),
+                      );
+                    }
+                  },
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.vpn_key_rounded, size: 16),
+                  label: const Text('Re-authenticate / 重新登录'),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const LoginDialog(),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),

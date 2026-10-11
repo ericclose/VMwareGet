@@ -15,6 +15,19 @@ class CatalogProvider extends ChangeNotifier {
 
   CatalogProvider() {
     _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
+    _initCachedCatalog();
+  }
+
+  void _initCachedCatalog() async {
+    final hasCached = await _catalogService.loadCachedCatalog();
+    if (hasCached) {
+      final items = _catalogService.getReleasesForFamily(_selectedFamily);
+      if (items.isNotEmpty) {
+        _selectedRelease = items.first;
+      }
+      _syncStatusMessage = 'Cached catalog loaded. Ready to sync online.';
+      notifyListeners();
+    }
   }
 
   VMwareProductFamily get selectedFamily => _selectedFamily;
@@ -57,8 +70,8 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearCatalog() {
-    _catalogService.clearCatalog();
+  void clearCatalog() async {
+    await _catalogService.clearCatalog();
     _selectedRelease = null;
     _searchQuery = '';
     _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
@@ -84,7 +97,8 @@ class CatalogProvider extends ChangeNotifier {
           _selectedRelease = items.first;
         }
       } else {
-        _syncStatusMessage = 'Unable to fetch online catalog. Please verify session.';
+        _syncStatusMessage = _catalogService.lastSyncError ??
+            'Unable to fetch online catalog. Please verify session.';
       }
     } catch (e) {
       _syncStatusMessage = 'Sync error: $e';

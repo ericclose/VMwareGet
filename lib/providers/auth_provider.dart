@@ -48,6 +48,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String token,
     String? displayName,
+    String? csrfToken,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -58,6 +59,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         tokenOrCookie: token,
         displayName: displayName,
+        csrfToken: csrfToken,
       );
       _currentSession = session;
       _status = AuthStatus.authenticated;
@@ -135,6 +137,7 @@ class AuthProvider extends ChangeNotifier {
         return await loginWithManualToken(
           email: email,
           token: testData['cookie']!,
+          csrfToken: testData['csrf']?.toString(),
         );
       }
       _errorMessage = 'No verified session found in tools/.session.json';

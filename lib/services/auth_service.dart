@@ -14,27 +14,27 @@ class AuthService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Future<AuthSession?> loadSession() async {
+    String? jsonStr;
     try {
-      final jsonStr =
-          await _secureStorage.read(key: AppConstants.storageKeySession);
-      if (jsonStr != null && jsonStr.isNotEmpty) {
+      jsonStr = await _secureStorage.read(key: AppConstants.storageKeySession);
+    } catch (_) {}
+
+    // Fallback if secure storage returned null or threw on macOS/sandboxed environments
+    if (jsonStr == null || jsonStr.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        jsonStr = prefs.getString(AppConstants.storageKeySession);
+      } catch (_) {}
+    }
+
+    if (jsonStr != null && jsonStr.isNotEmpty) {
+      try {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         final session = AuthSession.fromJson(data);
         if (session.isValid) {
           return session;
         }
-      }
-    } catch (_) {
-      // Fallback
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString(AppConstants.storageKeySession);
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-        final session = AuthSession.fromJson(data);
-        if (session.isValid) {
-          return session;
-        }
-      }
+      } catch (_) {}
     }
     return null;
   }
@@ -47,16 +47,20 @@ class AuthService {
         value: jsonStr,
       );
     } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.storageKeySession, jsonStr);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.storageKeySession, jsonStr);
+    } catch (_) {}
   }
 
   Future<void> clearSession() async {
     try {
       await _secureStorage.delete(key: AppConstants.storageKeySession);
     } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.storageKeySession);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.storageKeySession);
+    } catch (_) {}
 
     // Completely clear in-app webview cookies and storage so that the next login is fresh
     if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
@@ -64,6 +68,68 @@ class AuthService {
         await WebviewWindow.clearAll();
       } catch (_) {}
     }
+  }
+
+  /// Filters and compiles cookies strictly applicable to support.broadcom.com,
+  /// preventing cookie collision from login.broadcom.com or auth.broadcom.com.
+  static String compileCookiesForSupportPortal(List<dynamic> cookies) {
+    // Exclude subdomains not meant for support portal (e.g. login.broadcom.com, auth.broadcom.com)
+    final candidates = cookies.where((c) {
+      final d = (c.domain as String?)?.toLowerCase().trim() ?? '';
+      if (d.contains('login.') ||
+          d.contains('auth.') ||
+          d.contains('okta.') ||
+          d.contains('profile.')) {
+        return false;
+      }
+      return d == 'support.broadcom.com' ||
+          d == '.support.broadcom.com' ||
+          d == '.broadcom.com' ||
+          d == 'broadcom.com';
+    }).toList();
+
+    // Sort by domain specificity: support.broadcom.com takes precedence over .broadcom.com
+    candidates.sort((a, b) {
+      final aDom = (a.domain as String?)?.toLowerCase() ?? '';
+      final bDom = (b.domain as String?)?.toLowerCase() ?? '';
+      final aPath = (a.path as String?) ?? '';
+      final bPath = (b.path as String?) ?? '';
+      final aIsHost = aDom.contains('support') ? 10 : 0;
+      final bIsHost = bDom.contains('support') ? 10 : 0;
+      final aScore = aIsHost + aPath.length;
+      final bScore = bIsHost + bPath.length;
+      return bScore.compareTo(aScore);
+    });
+
+    final Map<String, String> map = {};
+    for (final c in candidates) {
+      final name = (c.name as String?) ?? '';
+      final val = (c.value as String?) ?? '';
+      if (name.isNotEmpty && val.isNotEmpty && !map.containsKey(name)) {
+        map[name] = val;
+      }
+    }
+
+    return map.entries.map((e) => '${e.key}=${e.value}').join('; ');
+  }
+
+  /// Deduplicates manual cookie string by cookie name
+  static String cleanCookieString(String cookieStr) {
+    final parts = cookieStr.split(';');
+    final Map<String, String> map = {};
+    for (final part in parts) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      final eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        final key = trimmed.substring(0, eqIdx).trim();
+        final val = trimmed.substring(eqIdx + 1).trim();
+        if (key.isNotEmpty && val.isNotEmpty) {
+          map[key] = val;
+        }
+      }
+    }
+    return map.entries.map((e) => '${e.key}=${e.value}').join('; ');
   }
 
   Future<Map<String, dynamic>?> loadSessionFromLocalTestFile() async {
@@ -90,11 +156,29 @@ class AuthService {
 
   Future<bool> probeSessionValidity(AuthSession session) async {
     try {
-      final dio = Dio();
-      final cookieHeader = session.cookieJar ?? session.sessionToken;
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+          followRedirects: false,
+          validateStatus: (status) => status == 200,
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Origin': 'https://support.broadcom.com',
+            'Referer':
+                'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true',
+            'Accept-Language':
+                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+          },
+        ),
+      );
+      final cookieHeader = cleanCookieString(session.cookieJar ?? session.sessionToken);
       final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
       final resp = await dio.post(
-        'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
+        'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
         data: {
           'subFamily': 'VMware Workstation Pro',
           'searchVal': '',
@@ -105,12 +189,6 @@ class AuthService {
           headers: {
             'Cookie': cookieHeader,
             'x-csrf-token': csrfHeader,
-            'Origin': 'https://support.broadcom.com',
-            'Referer':
-                'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language':
-                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
           },
         ),
       );
@@ -152,6 +230,8 @@ class AuthService {
         extractedCsrf = csrfMatch.group(1);
       }
     }
+
+    cleanCookie = cleanCookieString(cleanCookie);
 
     final session = AuthSession(
       email: email.trim(),
@@ -198,11 +278,6 @@ class AuthService {
 
     onStatusUpdate?.call('Launching Broadcom in-app secure portal...');
 
-    // Clear previous or stale webview cookies to guarantee a fresh login flow
-    try {
-      await WebviewWindow.clearAll();
-    } catch (_) {}
-
     final webview = await WebviewWindow.create(
       configuration: const CreateConfiguration(
         title: '',
@@ -246,10 +321,6 @@ class AuthService {
         final cookies = await webview.getAllCookies();
         if (cookies.isEmpty) return;
 
-        final broadcomCookies =
-            cookies.where((c) => c.domain.contains('broadcom.com')).toList();
-        if (broadcomCookies.isEmpty) return;
-
         // Query active page URL and Liferay runtime inside WKWebView
         String? extractedCsrf;
         String? extractedEmail;
@@ -268,9 +339,20 @@ class AuthService {
                                 url.includes('login.broadcom.com') ||
                                 url.includes('okta.com');
                 const isSupport = url.includes('support.broadcom.com') && !isLogin;
-                const csrf = window.Liferay?.authToken || window.themeDisplay?.getAuthToken?.() || '';
-                const email = window.themeDisplay?.getUserEmailAddress?.() || '';
-                let name = window.themeDisplay?.getUserName?.() || '';
+                let csrf = window.Liferay?.authToken || '';
+                if (!csrf && window.themeDisplay && typeof window.themeDisplay.getAuthToken === 'function') {
+                  csrf = window.themeDisplay.getAuthToken();
+                }
+                if (!csrf) {
+                  const m = document.documentElement.innerHTML.match(/Liferay\\.authToken\\s*=\\s*['"]([a-zA-Z0-9_-]+)['"]/);
+                  if (m) csrf = m[1];
+                }
+                const email = (window.themeDisplay && typeof window.themeDisplay.getUserEmailAddress === 'function')
+                  ? window.themeDisplay.getUserEmailAddress()
+                  : '';
+                let name = (window.themeDisplay && typeof window.themeDisplay.getUserName === 'function')
+                  ? window.themeDisplay.getUserName()
+                  : '';
                 if (!name || name === 'Guest') {
                   const el = document.querySelector('.user-full-name, .user-name, .profile-name, [data-user-name]');
                   if (el) name = el.innerText.trim();
@@ -327,21 +409,24 @@ class AuthService {
           return;
         }
 
-        final cookieHeader =
-            broadcomCookies.map((c) => '${c.name}=${c.value}').join('; ');
+        final cleanCookieHeader = compileCookiesForSupportPortal(cookies);
+        if (cleanCookieHeader.isEmpty || !cleanCookieHeader.contains('JSESSIONID')) {
+          return;
+        }
+
         final csrf = (extractedCsrf != null && extractedCsrf.isNotEmpty)
             ? extractedCsrf
             : 'YaLAJUoR';
 
-        onStatusUpdate?.call('Broadcom login detected! Validating session...');
+        onStatusUpdate?.call('Broadcom portal detected. Verifying session...');
 
         // Strict verification: live API call MUST succeed with HTTP 200 (not 302 redirect)
         bool apiVerified = false;
         try {
           final dio = Dio(
             BaseOptions(
-              connectTimeout: const Duration(seconds: 4),
-              receiveTimeout: const Duration(seconds: 4),
+              connectTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 5),
               followRedirects: false, // Disallow 302 redirect to login
               validateStatus: (status) => status == 200,
               headers: {
@@ -352,7 +437,7 @@ class AuthService {
                 'Origin': 'https://support.broadcom.com',
                 'Referer':
                     'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro',
-                'Cookie': cookieHeader,
+                'Cookie': cleanCookieHeader,
                 'x-csrf-token': csrf,
               },
             ),
@@ -375,8 +460,8 @@ class AuthService {
           }
         } catch (_) {}
 
-        // ONLY capture and close when the live API confirms 200 OK (OR user is verified on portal with real non-guest name)
-        if (apiVerified || (isSupportPortal && extractedName != null && extractedName.isNotEmpty && extractedName != 'Guest')) {
+        // ONLY capture and close when the live API verifies HTTP 200 OK
+        if (apiVerified) {
           String userEmail = (extractedEmail != null && extractedEmail.contains('@'))
               ? extractedEmail
               : (extractedName != null && extractedName.isNotEmpty
@@ -393,12 +478,12 @@ class AuthService {
 
           final session = await authenticateManual(
             email: userEmail,
-            tokenOrCookie: cookieHeader,
+            tokenOrCookie: cleanCookieHeader,
             displayName: displayName,
             csrfToken: csrf,
           );
 
-          onStatusUpdate?.call('Login successful! Session captured.');
+          onStatusUpdate?.call('Login successful! Session verified.');
           finishWithSession(session);
         }
       } catch (_) {}

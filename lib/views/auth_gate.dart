@@ -25,7 +25,7 @@ class _AuthGateState extends State<AuthGate> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
 
-    if (auth.isLoading || auth.status == AuthStatus.initial) {
+    if (auth.status == AuthStatus.initial) {
       return Scaffold(
         body: Center(
           child: Column(

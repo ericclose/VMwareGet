@@ -228,8 +228,8 @@ class AuthService {
       }
     });
 
-    // Check cookies every 1200ms
-    pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) async {
+    // Check cookies and page authentication state every 1000ms
+    pollTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) async {
       try {
         final cookies = await webview.getAllCookies();
         if (cookies.isEmpty) return;
@@ -240,31 +240,119 @@ class AuthService {
 
         final hasJSessionId =
             broadcomCookies.any((c) => c.name.toUpperCase() == 'JSESSIONID');
-        final hasOktaOrIngress = broadcomCookies.any((c) =>
-            c.name.toLowerCase().contains('okta') ||
-            c.name.toLowerCase().contains('liferay') ||
-            c.name.toLowerCase().contains('portal'));
+        final hasSessionCookie = broadcomCookies.any((c) {
+          final n = c.name.toLowerCase();
+          return n == 'jsessionid' ||
+              n.contains('saml') ||
+              n.contains('session') ||
+              n.contains('liferay') ||
+              n.contains('okta');
+        });
 
-        if (hasJSessionId && hasOktaOrIngress) {
+        // Query active page DOM and Liferay runtime inside WKWebView
+        String? extractedCsrf;
+        String? extractedEmail;
+        String? extractedName;
+        bool jsIsSignedIn = false;
+
+        try {
+          final jsRaw = await webview.evaluateJavaScript('''
+            (() => {
+              try {
+                const isLoginPage = window.location.href.includes('/login') || 
+                                    window.location.hostname.includes('auth.') ||
+                                    window.location.hostname.includes('login.');
+                const isSupport = window.location.hostname.includes('support.broadcom.com');
+                const csrf = window.Liferay?.authToken || window.themeDisplay?.getAuthToken?.() || '';
+                const email = window.themeDisplay?.getUserEmailAddress?.() || '';
+                let name = window.themeDisplay?.getUserName?.() || '';
+                if (!name || name === 'Guest') {
+                  const el = document.querySelector('.user-full-name, .user-name, .profile-name, [data-user-name]');
+                  if (el) name = el.innerText.trim();
+                }
+                const hasSignOut = document.body ? (document.body.innerText.includes('Sign Out') || document.body.innerText.includes('Log Out')) : false;
+                const isSignedIn = (window.themeDisplay?.isSignedIn?.() === true) ||
+                                   (isSupport && !isLoginPage && name.length > 0 && name !== 'Guest') ||
+                                   (isSupport && !isLoginPage && (csrf.length > 0 || hasSignOut));
+
+                return JSON.stringify({
+                  isSignedIn: !!isSignedIn,
+                  csrf: csrf,
+                  email: email,
+                  name: name,
+                  url: window.location.href
+                });
+              } catch(e) {
+                return JSON.stringify({ isSignedIn: false, error: e.toString() });
+              }
+            })()
+          ''');
+
+          if (jsRaw != null) {
+            String jsStr = jsRaw.toString();
+            if (jsStr.startsWith('"') && jsStr.endsWith('"') && jsStr.length > 2) {
+              jsStr = jsonDecode(jsStr).toString();
+            }
+            final data = jsonDecode(jsStr);
+            if (data is Map) {
+              jsIsSignedIn = data['isSignedIn'] == true;
+              if (data['csrf']?.toString().isNotEmpty == true) {
+                extractedCsrf = data['csrf'].toString().trim();
+              }
+              if (data['email']?.toString().isNotEmpty == true) {
+                extractedEmail = data['email'].toString().trim();
+              }
+              if (data['name']?.toString().isNotEmpty == true &&
+                  data['name'].toString() != 'Guest') {
+                extractedName = data['name'].toString().trim();
+              }
+            }
+          }
+        } catch (_) {}
+
+        final isAuthenticated = (hasJSessionId && hasSessionCookie) || jsIsSignedIn;
+
+        if (isAuthenticated) {
           final cookieHeader =
               broadcomCookies.map((c) => '${c.name}=${c.value}').join('; ');
 
-          String? csrfToken;
-          try {
-            final csrfResult = await webview
-                .evaluateJavaScript('window.Liferay?.authToken || ""');
-            if (csrfResult != null &&
-                csrfResult.toString().isNotEmpty &&
-                csrfResult.toString() != '""') {
-              csrfToken = csrfResult.toString().replaceAll('"', '').trim();
-            }
-          } catch (_) {}
+          onStatusUpdate?.call('Broadcom authentication detected! Capturing session...');
 
-          onStatusUpdate?.call('Broadcom authentication detected! Validating session...');
+          String userEmail = (extractedEmail != null && extractedEmail.contains('@'))
+              ? extractedEmail
+              : 'account@broadcom.com';
 
-          // Test verification with live SKU API
+          String displayName = (extractedName != null &&
+                  extractedName.isNotEmpty &&
+                  extractedName != 'Guest')
+              ? extractedName
+              : (userEmail.contains('@')
+                  ? userEmail.split('@').first
+                  : 'Broadcom User');
+
+          final csrf = extractedCsrf ?? 'YaLAJUoR';
+
+          // Try live API check with proper browser User-Agent
+          bool apiVerified = false;
           try {
-            final dio = Dio();
+            final dio = Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 4),
+                receiveTimeout: const Duration(seconds: 4),
+                headers: {
+                  'User-Agent':
+                      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+                  'Accept': 'application/json, text/plain, */*',
+                  'Content-Type': 'application/json;charset=UTF-8',
+                  'Origin': 'https://support.broadcom.com',
+                  'Referer':
+                      'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro',
+                  'Cookie': cookieHeader,
+                  'x-csrf-token': csrf,
+                },
+              ),
+            );
+
             final resp = await dio.post(
               'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
               data: {
@@ -273,44 +361,28 @@ class AuthService {
                 'language': 'EN',
                 'freeDownloads': true,
               },
-              options: Options(
-                headers: {
-                  'Cookie': cookieHeader,
-                  'x-csrf-token': csrfToken ?? 'YaLAJUoR',
-                  'Origin': 'https://support.broadcom.com',
-                  'Referer': AppConstants.broadcomLoginUrl,
-                },
-              ),
             );
 
             if (resp.statusCode == 200 &&
                 resp.data is Map &&
                 (resp.data as Map)['success'] == true) {
-              String userEmail = 'account@broadcom.com';
-              try {
-                final emailResult = await webview.evaluateJavaScript(
-                    'window.themeDisplay?.getUserEmailAddress() || ""');
-                if (emailResult != null &&
-                    emailResult.toString().contains('@')) {
-                  userEmail =
-                      emailResult.toString().replaceAll('"', '').trim();
-                }
-              } catch (_) {}
-
-              final session = await authenticateManual(
-                email: userEmail,
-                tokenOrCookie: cookieHeader,
-                displayName: userEmail.contains('@')
-                    ? userEmail.split('@').first
-                    : 'Broadcom User',
-                csrfToken: csrfToken ?? 'YaLAJUoR',
-              );
-
-              onStatusUpdate?.call('Login successful! Session captured.');
-              finishWithSession(session);
+              apiVerified = true;
             }
-          } catch (_) {
-            // User still interacting or authenticating, keep waiting
+          } catch (_) {}
+
+          // Conclude authentication if API verified OR confirmed signed-in inside WKWebView
+          if (apiVerified ||
+              (hasJSessionId && jsIsSignedIn) ||
+              (hasJSessionId && extractedName != null && extractedName.isNotEmpty)) {
+            final session = await authenticateManual(
+              email: userEmail,
+              tokenOrCookie: cookieHeader,
+              displayName: displayName,
+              csrfToken: csrf,
+            );
+
+            onStatusUpdate?.call('Login successful! Session captured.');
+            finishWithSession(session);
           }
         }
       } catch (_) {}

@@ -86,11 +86,11 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Main as main.dart Bootstrap
-    participant Gate as AuthGate
-    participant Auth as AuthProvider & Service
-    participant Storage as SecureStorage / Prefs
-    participant UI as DashboardView (Shell)
+    participant Main as "main.dart Bootstrap"
+    participant Gate as "AuthGate"
+    participant Auth as "AuthProvider & Service"
+    participant Storage as "SecureStorage / Prefs"
+    participant UI as "DashboardView (Shell)"
 
     Main->>Main: runWebViewTitleBarWidget() 检查独立窗口参数
     Main->>Main: WidgetsFlutterBinding.ensureInitialized()
@@ -112,23 +112,26 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant UI as DownloadsView
-    participant Engine as DownloadService (Range)
-    participant Broadcom as Broadcom Support CDN
-    participant Disk as Local Disk (RandomAccessFile)
-    participant Hash as ChecksumService
+    participant UI as "DownloadsView"
+    participant Engine as "DownloadService (Range)"
+    participant Broadcom as "Broadcom Support CDN"
+    participant Disk as "Local Disk (RandomAccessFile)"
+    participant Hash as "ChecksumService"
 
     UI->>Engine: startDownload(release, threads=16, dir)
     Engine->>Broadcom: 发起 HEAD 探测: Content-Length & Accept-Ranges
     Broadcom-->>Engine: HTTP 200/206 (Size: 580MB, Ranges: bytes)
     Engine->>Disk: 创建目标文件并预分配空间
-    Engine->>Engine: 将 580MB 划分为 16 个分块区间 [start, end]
+    Engine->>Engine: 将 580MB 划分为 16 个切片区间 (start 到 end)
     
-    par 16 线程同时并发下载
-        Engine->>Broadcom: Thread 1: GET Range: bytes=0-36M
-        Engine->>Broadcom: Thread 2: GET Range: bytes=36M-72M
+    par 16 线程同时并发传输
+        Engine->>Broadcom: Thread 1: GET Range 0-36M
+    and
+        Engine->>Broadcom: Thread 2: GET Range 36M-72M
+    and
         Engine->>Broadcom: ...
-        Engine->>Broadcom: Thread 16: GET Range: bytes=544M-580M
+    and
+        Engine->>Broadcom: Thread 16: GET Range 544M-580M
     end
     
     Broadcom-->>Disk: 定点写入: raf.setPosition(offset).writeFrom(chunk)

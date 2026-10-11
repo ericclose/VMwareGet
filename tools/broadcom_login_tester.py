@@ -69,7 +69,7 @@ def parse_cookie_string(cookie_str):
     return cookies
 
 
-def verify_session_against_broadcom(cookies, csrf_token='YaLAJUoR'):
+def verify_session_against_broadcom(cookies, csrf_token='YaLAJUoR', email=''):
     print("\n" + "="*70)
     print(" [*] Verifying cookies against Broadcom live API...")
     print("="*70)
@@ -148,8 +148,8 @@ def verify_session_against_broadcom(cookies, csrf_token='YaLAJUoR'):
         print(f" -> createProductDownloadOrder status: HTTP {r_order.status_code}")
         if r_order.status_code == 200:
             order_data = r_order.json()
-            if order_data.get('status') == 200:
-                d_url = order_data.get('data', {}).get('downloadUrl')
+            d_url = order_data.get('data', {}).get('downloadUrl')
+            if d_url:
                 print(f" [+] Successfully created authorized download order!")
                 print(f"     - CDN Download URL: {d_url[:80]}...")
 
@@ -428,15 +428,48 @@ def main():
         masked_val = v[:10] + "..." + v[-6:] if len(v) > 20 else v
         print(f"  • {k:30} = {masked_val}")
 
-    if 'JSESSIONID' in cookies_found or 'liferay-ingress-prd-us' in cookies_found:
-        print("\n [✓] Broadcom Session cookies successfully acquired!")
-        verify_session_against_broadcom(cookies_found, email=email)
-        save_session(cookies_found, email=email)
+    if 'SAML_SP_SESSION_KEY' in cookies_found:
+        print("\n [✓] Broadcom Authenticated Session cookies successfully acquired!")
+        success = verify_session_against_broadcom(cookies_found, email=email)
+        if success:
+            save_session(cookies_found, email=email)
+            print("\n [✓] Success! Session saved to tools/.session.json.")
+            return
     else:
-        print("\n [!] Session cookies not automatically finalized.")
-        print("     (Broadcom may have triggered client fingerprint or CAPTCHA validation)")
-        print("\n [Tip] You can copy the Cookie string or cURL from your browser developer tools")
-        print("       and run: ./test_broadcom.sh login --cookie \"YOUR_COOKIE_STRING\"")
+        print("\n [!] Notice: Symantec Access Hub returned HTTP 401 during direct password authentication.")
+        print("     Explanation: Broadcom enforces browser client device fingerprinting (Akamai Bot Manager / IaDfp).")
+        print("     The cookies above are currently anonymous visitor cookies, missing `SAML_SP_SESSION_KEY`.")
+        print("\n [Interactive Fallback] You can paste the Cookie string or cURL command from your browser developer tools:")
+        try:
+            user_input = input(" [?] Paste Cookie string or cURL command (or press Enter to exit): ").strip()
+        except (KeyboardInterrupt, EOFError):
+            user_input = ''
+
+        if user_input:
+            pasted_cookies = {}
+            csrf = 'YaLAJUoR'
+            if user_input.startswith('curl'):
+                import re
+                cm = re.search(r"-[Hhb]\s+['\"](?:Cookie:\s*)?([^'\"]+)['\"]", user_input)
+                if cm:
+                    pasted_cookies = parse_cookie_string(cm.group(1))
+                cs = re.search(r"-[Hh]\s+['\"]x-csrf-token:\s*([^'\"]+)['\"]", user_input, re.I)
+                if cs:
+                    csrf = cs.group(1)
+            else:
+                pasted_cookies = parse_cookie_string(user_input)
+
+            if pasted_cookies:
+                print(" [*] Verifying pasted session...")
+                success = verify_session_against_broadcom(pasted_cookies, csrf_token=csrf, email=email)
+                if success:
+                    save_session(pasted_cookies, csrf_token=csrf, email=email)
+                    print("\n [✓] Success! Authenticated session saved to tools/.session.json.")
+                    return
+                else:
+                    print(" [!] Pasted session could not be verified against Broadcom live API.")
+            else:
+                print(" [!] Could not parse cookies from provided input.")
 
 
 if __name__ == '__main__':

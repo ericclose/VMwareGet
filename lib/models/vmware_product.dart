@@ -3,7 +3,7 @@ enum VMwareProductFamily {
   fusion,
 }
 
-enum TargetPlatform {
+enum VMwarePlatform {
   windows,
   linux,
   macos,
@@ -14,7 +14,7 @@ class VMwareReleaseItem {
   final VMwareProductFamily family;
   final String version;
   final String buildNumber;
-  final TargetPlatform platform;
+  final VMwarePlatform platform;
   final String platformLabel;
   final String fileName;
   final String fileSize;
@@ -91,9 +91,9 @@ class VMwareReleaseItem {
       ),
       version: json['version'] as String,
       buildNumber: json['buildNumber'] as String,
-      platform: TargetPlatform.values.firstWhere(
+      platform: VMwarePlatform.values.firstWhere(
         (e) => e.name == json['platform'],
-        orElse: () => TargetPlatform.windows,
+        orElse: () => VMwarePlatform.windows,
       ),
       platformLabel: json['platformLabel'] as String,
       fileName: json['fileName'] as String,

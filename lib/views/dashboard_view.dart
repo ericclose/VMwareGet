@@ -100,7 +100,7 @@ class _DashboardViewState extends State<DashboardView> {
                     child: const Icon(Icons.download_rounded),
                   )
                 : const Icon(Icons.download_rounded),
-            label: Text('Downloads'),
+            label: const Text('Downloads'),
           ),
           const NavigationRailDestination(
             icon: Icon(Icons.settings_outlined),

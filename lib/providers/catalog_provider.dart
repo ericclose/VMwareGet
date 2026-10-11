@@ -8,7 +8,7 @@ class CatalogProvider extends ChangeNotifier {
 
   VMwareProductFamily _selectedFamily = VMwareProductFamily.workstationPro;
   VMwareReleaseItem? _selectedRelease;
-  TargetPlatform? _platformFilter;
+  VMwarePlatform? _platformFilter;
   String _searchQuery = '';
   bool _isSyncing = false;
   String? _syncStatusMessage;
@@ -19,7 +19,7 @@ class CatalogProvider extends ChangeNotifier {
 
   VMwareProductFamily get selectedFamily => _selectedFamily;
   VMwareReleaseItem? get selectedRelease => _selectedRelease;
-  TargetPlatform? get platformFilter => _platformFilter;
+  VMwarePlatform? get platformFilter => _platformFilter;
   String get searchQuery => _searchQuery;
   bool get isSyncing => _isSyncing;
   String? get syncStatusMessage => _syncStatusMessage;
@@ -47,7 +47,7 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setPlatformFilter(TargetPlatform? platform) {
+  void setPlatformFilter(VMwarePlatform? platform) {
     _platformFilter = platform;
     notifyListeners();
   }

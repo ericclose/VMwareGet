@@ -39,7 +39,7 @@ class CatalogService {
   List<VMwareReleaseItem> searchReleases({
     required VMwareProductFamily family,
     String? query,
-    TargetPlatform? platform,
+    VMwarePlatform? platform,
   }) {
     return _releases.where((item) {
       if (item.family != family) return false;
@@ -60,13 +60,6 @@ class CatalogService {
   Future<bool> syncOnlineCatalog(AuthSession session) async {
     final cookieHeader = session.cookieJar ?? session.sessionToken;
     final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
-
-    final options = Options(
-      headers: {
-        'Cookie': cookieHeader,
-        'x-csrf-token': csrfHeader,
-      },
-    );
 
     final List<VMwareReleaseItem> onlineItems = [];
 
@@ -186,26 +179,26 @@ class CatalogService {
                             ? '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
                             : 'Unknown';
 
-                        final TargetPlatform resolvedPlatform;
+                        final VMwarePlatform resolvedPlatform;
                         final String resolvedPlatformLabel;
 
                         if (fileName.toLowerCase().endsWith('.exe')) {
-                          resolvedPlatform = TargetPlatform.windows;
+                          resolvedPlatform = VMwarePlatform.windows;
                           resolvedPlatformLabel = 'Windows 64-bit (.exe)';
                         } else if (fileName.toLowerCase().endsWith('.dmg')) {
-                          resolvedPlatform = TargetPlatform.macos;
+                          resolvedPlatform = VMwarePlatform.macos;
                           resolvedPlatformLabel = 'macOS Universal (.dmg)';
                         } else if (fileName.toLowerCase().endsWith('.bundle') ||
                             fileName.toLowerCase().endsWith('.tar.gz')) {
-                          resolvedPlatform = TargetPlatform.linux;
+                          resolvedPlatform = VMwarePlatform.linux;
                           resolvedPlatformLabel = 'Linux 64-bit (.bundle)';
                         } else {
                           resolvedPlatform = family ==
                                   VMwareProductFamily.workstationPro
                               ? (displayGroup.toLowerCase().contains('linux')
-                                  ? TargetPlatform.linux
-                                  : TargetPlatform.windows)
-                              : TargetPlatform.macos;
+                                  ? VMwarePlatform.linux
+                                  : VMwarePlatform.windows)
+                              : VMwarePlatform.macos;
                           resolvedPlatformLabel = resolvedPlatform.name;
                         }
 

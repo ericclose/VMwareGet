@@ -91,7 +91,7 @@ class CatalogView extends StatelessWidget {
             ),
             if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
               const SizedBox(width: 4),
-              PopupMenuButton<TargetPlatform?>(
+              PopupMenuButton<VMwarePlatform?>(
                 tooltip: 'Filter Platform',
                 initialValue: catalog.platformFilter,
                 icon: Icon(
@@ -107,11 +107,11 @@ class CatalogView extends StatelessWidget {
                     child: Text('All Platforms'),
                   ),
                   const PopupMenuItem(
-                    value: TargetPlatform.windows,
+                    value: VMwarePlatform.windows,
                     child: Text('Windows only'),
                   ),
                   const PopupMenuItem(
-                    value: TargetPlatform.linux,
+                    value: VMwarePlatform.linux,
                     child: Text('Linux only'),
                   ),
                 ],

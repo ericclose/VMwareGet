@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 
@@ -36,13 +37,6 @@ class ChecksumService {
 
     final totalBytes = await file.length();
     int processedBytes = 0;
-
-    final sha256Sink = sha256.startChunkedConversion(
-      ChunkedConversionSink<Digest>.withCallback((accumulated) {}),
-    );
-    final md5Sink = md5.startChunkedConversion(
-      ChunkedConversionSink<Digest>.withCallback((accumulated) {}),
-    );
 
     Digest? calculatedSha256;
     Digest? calculatedMd5;

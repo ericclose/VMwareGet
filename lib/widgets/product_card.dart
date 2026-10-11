@@ -13,13 +13,13 @@ class ProductCard extends StatelessWidget {
     required this.onTap,
   });
 
-  IconData _getPlatformIcon(TargetPlatform platform) {
+  IconData _getPlatformIcon(VMwarePlatform platform) {
     switch (platform) {
-      case TargetPlatform.windows:
+      case VMwarePlatform.windows:
         return Icons.window_rounded;
-      case TargetPlatform.linux:
+      case VMwarePlatform.linux:
         return Icons.terminal_rounded;
-      case TargetPlatform.macos:
+      case VMwarePlatform.macos:
         return Icons.apple_rounded;
     }
   }

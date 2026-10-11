@@ -77,7 +77,7 @@ class SettingsView extends StatelessWidget {
                           ),
                         ),
                         FilledButton.tonal(
-                          style: FilledButton.tonalStyleFrom(
+                          style: FilledButton.styleFrom(
                             foregroundColor: colorScheme.error,
                           ),
                           onPressed: () => auth.logout(),

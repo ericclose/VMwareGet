@@ -125,19 +125,19 @@ class AuthService {
 
     // Check if user pasted a full cURL command
     if (cleanCookie.startsWith('curl')) {
-      final cookieMatch = RegExp(r"-[-a-zA-Z]*[hb]\s+['" + r'"](?:Cookie:\s*)?([^' + r'"' + r"']+)['" + r'"]')
+      final cookieMatch = RegExp(r"""-[-a-zA-Z]*[hb]\s+['"](?:Cookie:\s*)?([^'"]+)['"]""")
           .firstMatch(cleanCookie);
       if (cookieMatch != null) {
         cleanCookie = cookieMatch.group(1) ?? cleanCookie;
       }
-      final csrfMatch = RegExp(r"x-csrf-token:\s*([^\s'" + r'"]+)', caseSensitive: false)
+      final csrfMatch = RegExp(r"""x-csrf-token:\s*([^\s'"]+)""", caseSensitive: false)
           .firstMatch(tokenOrCookie);
       if (csrfMatch != null) {
         extractedCsrf = csrfMatch.group(1);
       }
     } else {
       // Search for x-csrf-token inside text if present
-      final csrfMatch = RegExp(r"x-csrf-token:\s*([^\s'" + r'"]+)', caseSensitive: false)
+      final csrfMatch = RegExp(r"""x-csrf-token:\s*([^\s'"]+)""", caseSensitive: false)
           .firstMatch(tokenOrCookie);
       if (csrfMatch != null) {
         extractedCsrf = csrfMatch.group(1);

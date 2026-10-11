@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import '../services/download_service.dart';

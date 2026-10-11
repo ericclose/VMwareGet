@@ -253,12 +253,14 @@ class _LoginDialogState extends State<LoginDialog> {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.copy_rounded, size: 16),
-                                label: const Text('Copy Helper Snippet'),
-                                tooltip:
+                              child: Tooltip(
+                                message:
                                     'Copy JavaScript snippet to grab cookies from browser console',
-                                onPressed: _copyCookieBookmarklet,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.copy_rounded, size: 16),
+                                  label: const Text('Copy Helper Snippet'),
+                                  onPressed: _copyCookieBookmarklet,
+                                ),
                               ),
                             ),
                           ],

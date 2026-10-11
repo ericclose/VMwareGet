@@ -5,7 +5,7 @@ class AppConstants {
 
   // Broadcom Portal Endpoints
   static const String broadcomLoginUrl =
-      'https://profile.broadcom.com/web/login';
+      'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true';
   static const String broadcomRegisterUrl =
       'https://profile.broadcom.com/web/registration';
   static const String workstationPortalUrl =

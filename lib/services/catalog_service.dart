@@ -325,7 +325,7 @@ class CatalogService {
 
                         onlineItems.add(
                           VMwareReleaseItem(
-                            id: '${family.name}-$releaseVer-${fileItem['buildNumber'] ?? fileName.hashCode}',
+                            id: '${family.name}-$releaseVer-${resolvedPlatform.name}-${fileItem['buildNumber'] ?? ''}-${fileName.hashCode}',
                             family: family,
                             version: releaseVer,
                             buildNumber:

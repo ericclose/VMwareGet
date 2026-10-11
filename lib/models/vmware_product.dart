@@ -83,8 +83,14 @@ class VMwareReleaseItem {
       };
 
   factory VMwareReleaseItem.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'] as String;
+    final platformStr = json['platform'] as String? ?? 'windows';
+    final fileNameStr = json['fileName'] as String? ?? '';
+    final id = rawId.contains(platformStr)
+        ? rawId
+        : '$rawId-$platformStr-${fileNameStr.hashCode}';
     return VMwareReleaseItem(
-      id: json['id'] as String,
+      id: id,
       family: VMwareProductFamily.values.firstWhere(
         (e) => e.name == json['family'],
         orElse: () => VMwareProductFamily.workstationPro,

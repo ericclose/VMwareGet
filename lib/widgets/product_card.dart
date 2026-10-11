@@ -28,6 +28,7 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -74,13 +75,17 @@ class ProductCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'v${release.version}',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Text(
+                            'v${release.version}',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
@@ -100,41 +105,9 @@ class ProductCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (release.isOnlineFetched) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.cloud_done_rounded,
-                                  size: 10,
-                                  color: Colors.green,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  'Live Cloud',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
                       '${release.platformLabel} • ${release.fileSize}',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -146,29 +119,80 @@ class ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     release.releaseDate,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.outline,
+                      fontSize: 11,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (isSelected)
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 18,
-                      color: colorScheme.primary,
-                    )
-                  else
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: colorScheme.outlineVariant,
-                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (release.isOnlineFetched) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : Colors.green.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.greenAccent.withValues(alpha: 0.3)
+                                  : Colors.green.withValues(alpha: 0.25),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_done_rounded,
+                                size: 10,
+                                color: isDark
+                                    ? Colors.greenAccent
+                                    : Colors.green.shade700,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Live',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.greenAccent
+                                      : Colors.green.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      if (isSelected)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 18,
+                          color: colorScheme.primary,
+                        )
+                      else
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: colorScheme.outlineVariant,
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ],

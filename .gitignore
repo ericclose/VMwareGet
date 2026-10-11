@@ -81,4 +81,7 @@ coverage/
 *.session.json
 tools/scraped_catalog.json
 tools/*.bin
+tools/*.json
+tools/*.html
+tools/*.js
 *.incomplete

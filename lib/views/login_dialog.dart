@@ -199,6 +199,8 @@ class _LoginDialogState extends State<LoginDialog> {
     }
   }
 
+  int _selectedTab = 0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -206,13 +208,13 @@ class _LoginDialogState extends State<LoginDialog> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 510),
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+          child: ScrollConfiguration(
+            behavior: const ScrollBehavior().copyWith(scrollbars: false),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -221,17 +223,18 @@ class _LoginDialogState extends State<LoginDialog> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(9),
                         decoration: BoxDecoration(
                           color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           Icons.vpn_key_rounded,
+                          size: 20,
                           color: colorScheme.onPrimaryContainer,
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,339 +258,349 @@ class _LoginDialogState extends State<LoginDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Method 1: Recommended In-App Browser Auto-Capture
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          colorScheme.primaryContainer.withValues(alpha: 0.6),
-                          colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.35),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.language_rounded,
-                                color: colorScheme.onPrimary,
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'In-App Browser Login',
-                                        style: theme.textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green.shade700,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          'RECOMMENDED',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    'Opens secure WKWebView window & auto-captures session upon login',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                  // Segmented Switcher for Login Method
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment<int>(
+                          value: 0,
+                          icon: Icon(Icons.language_rounded, size: 16),
+                          label: Text('In-App Browser'),
                         ),
-                        if (_inAppStatus != null) ...[
-                          const SizedBox(height: 12),
-                          LinearProgressIndicator(
-                            backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _inAppStatus!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                            label: Text(
-                              _isSubmitting
-                                  ? 'Authenticating in-app...'
-                                  : 'Sign In via In-App Browser (内置浏览器安全登录)',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            onPressed: _isSubmitting ? null : _loginWithInApp,
-                          ),
+                        ButtonSegment<int>(
+                          value: 1,
+                          icon: Icon(Icons.code_rounded, size: 16),
+                          label: Text('Manual / cURL Import'),
                         ),
                       ],
+                      selected: {_selectedTab},
+                      onSelectionChanged: (newVal) {
+                        setState(() => _selectedTab = newVal.first);
+                      },
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          'OR MANUAL IMPORT',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.outline,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
 
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Alternative: External Browser & Copy Cookies',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.launch_rounded, size: 16),
-                                label: const Text('External Browser'),
-                                onPressed: () =>
-                                    authProvider.openBroadcomLoginPortal(),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Tooltip(
-                                message:
-                                    'Copy JavaScript snippet to grab cookies from browser console',
-                                child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.copy_rounded, size: 16),
-                                  label: const Text('Copy Helper Snippet'),
-                                  onPressed: _copyCookieBookmarklet,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_hasLocalTestSession) ...[
-                    const SizedBox(height: 12),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _isSubmitting ? null : _importFromPlaywrightSession,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer
-                              .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: colorScheme.secondary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.auto_awesome_rounded,
-                                size: 18, color: colorScheme.secondary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Verified Session Detected',
-                                    style:
-                                        theme.textTheme.labelMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSecondaryContainer,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Import active session from local Playwright test cache',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSecondaryContainer
-                                          .withValues(alpha: 0.8),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.arrow_forward_ios_rounded,
-                                size: 14, color: colorScheme.secondary),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Step 2: Session Payload',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextButton.icon(
-                        icon: const Icon(Icons.content_paste_rounded, size: 15),
-                        label: const Text('Paste from Clipboard'),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: _pasteFromClipboard,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Account Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!val.contains('@')) {
-                        return 'Enter a valid email address';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _tokenController,
-                    decoration: const InputDecoration(
-                      labelText: 'Broadcom Cookie String or cURL Command',
-                      hintText:
-                          'Paste Cookie: SAML_SP_SESSION_KEY=... or full cURL',
-                      prefixIcon: Icon(Icons.token_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Please enter your session cookie or token';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.bolt_rounded, size: 16),
-                        label: const Text('Instant Demo Session'),
-                        onPressed: _isSubmitting ? null : _useQuickDemoSession,
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Connect Session'),
-                      ),
-                    ],
-                  ),
+                  if (_selectedTab == 0)
+                    _buildInAppBrowserTab(context, theme, colorScheme, authProvider)
+                  else
+                    _buildManualImportTab(context, theme, colorScheme, authProvider),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInAppBrowserTab(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AuthProvider authProvider,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.primaryContainer.withValues(alpha: 0.5),
+                colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: colorScheme.primary.withValues(alpha: 0.25),
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.language_rounded,
+                      color: colorScheme.onPrimary,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'In-App Browser Login',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade700,
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Text(
+                                'RECOMMENDED',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Opens secure WKWebView window & auto-captures session upon login',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (_inAppStatus != null) ...[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _inAppStatus!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                  label: Text(
+                    _isSubmitting
+                        ? 'Authenticating in-app...'
+                        : 'Sign In via In-App Browser',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _isSubmitting ? null : _loginWithInApp,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            TextButton.icon(
+              icon: const Icon(Icons.bolt_rounded, size: 16),
+              label: const Text('Instant Demo Session', style: TextStyle(fontSize: 12)),
+              onPressed: _isSubmitting ? null : _useQuickDemoSession,
+            ),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              icon: const Icon(Icons.launch_rounded, size: 14),
+              label: const Text('External Browser', style: TextStyle(fontSize: 12)),
+              onPressed: _isSubmitting
+                  ? null
+                  : () => authProvider.openBroadcomLoginPortal(),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManualImportTab(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AuthProvider authProvider,
+  ) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.content_paste_rounded, size: 14),
+                label: const Text('Paste from Clipboard', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                onPressed: _pasteFromClipboard,
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.copy_rounded, size: 14),
+                label: const Text('Copy Helper Snippet', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                onPressed: _copyCookieBookmarklet,
+              ),
+            ],
+          ),
+          if (_hasLocalTestSession) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: _isSubmitting ? null : _importFromPlaywrightSession,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: colorScheme.secondary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 16, color: colorScheme.secondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Import active session from local Playwright test cache',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSecondaryContainer,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 12, color: colorScheme.secondary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _emailController,
+            decoration: const InputDecoration(
+              labelText: 'Account Email',
+              prefixIcon: Icon(Icons.email_outlined, size: 18),
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Please enter your email';
+              }
+              if (!val.contains('@')) {
+                return 'Enter a valid email address';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _tokenController,
+            decoration: const InputDecoration(
+              labelText: 'Broadcom Cookie String or cURL Command',
+              hintText: 'Paste Cookie or cURL',
+              prefixIcon: Icon(Icons.token_outlined, size: 18),
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            maxLines: 2,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Please enter your session cookie or token';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.bolt_rounded, size: 16),
+                label: const Text('Instant Demo Session', style: TextStyle(fontSize: 12)),
+                onPressed: _isSubmitting ? null : _useQuickDemoSession,
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _isSubmitting ? null : _submit,
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Connect Session'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

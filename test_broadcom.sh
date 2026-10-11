@@ -20,14 +20,13 @@ if [ ! -d ".venv" ]; then
   .venv/bin/pip install beautifulsoup4 requests urllib3 cryptography pycryptodome playwright
 fi
 
-if [ "$1" = "login-browser" ] || [ "$1" = "playwright" ]; then
+if [ "$1" = "login" ] || [ "$1" = "playwright" ] || [ "$1" = "login-browser" ]; then
   shift
   exec .venv/bin/python3 tools/playwright_login.py "$@"
 fi
 
-if [ "$1" = "login" ]; then
+if [ "$1" = "test" ]; then
   shift
-  exec .venv/bin/python3 tools/broadcom_login_tester.py "$@"
 fi
 
 exec .venv/bin/python3 tools/broadcom_tester.py "$@"

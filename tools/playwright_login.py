@@ -12,11 +12,6 @@ import json
 import time
 import getpass
 import argparse
-import warnings
-
-# Suppress LibreSSL / urllib3 NotOpenSSLWarning on macOS system python
-warnings.filterwarnings('ignore', category=Warning)
-
 import requests
 from playwright.sync_api import sync_playwright
 
@@ -40,43 +35,83 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
         'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
         'Content-Type': 'application/json;charset=UTF-8',
         'Origin': 'https://support.broadcom.com',
-        'Referer': 'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro&displayGroup=VMware%20Workstation%20Pro%2026H1%20for%20Windows&release=26H1u1&os=&servicePk=546859&language=EN&freeDownloads=true',
+        'Referer': LOGIN_START_URL,
         'x-csrf-token': csrf_token,
     })
     s.cookies.update(cookies_dict)
 
-    # 1. Test catalog retrieval
+    # 1. 100% Online dynamic product discovery (zero hardcoded versions)
+    sku_url = 'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50'
+    try:
+        r_sku = s.post(sku_url, json={
+            'subFamily': 'VMware Workstation Pro',
+            'searchVal': '',
+            'language': 'EN',
+            'freeDownloads': True,
+        }, timeout=25)
+        print(f" -> getProductSkuDetails status: HTTP {r_sku.status_code}")
+        if r_sku.status_code != 200 or not r_sku.text.strip():
+            print(f" [!] Product SKU discovery failed: {r_sku.text[:200]}")
+            return False
+
+        sku_data = r_sku.json()
+        if not sku_data.get('success'):
+            print(f" [!] SKU API response: {sku_data.get('errors')}")
+            return False
+
+        content = sku_data.get('data', {}).get('productDetails', {}).get('content', [])
+        if not content:
+            print(" [!] No product groups returned from online discovery.")
+            return False
+
+        target_group = content[0]
+        display_group = target_group.get('description', '')
+        phantoms = target_group.get('phantomDetails', [])
+        if not phantoms:
+            print(" [!] No release items under discovered group.")
+            return False
+
+        chosen_phantom = phantoms[0]
+        release_ver = chosen_phantom.get('release', '')
+        gen_level = chosen_phantom.get('genLevel') or chosen_phantom.get('servicePk') or ''
+        print(f" [+] Dynamically discovered: {display_group} (Release: {release_ver}, genLevel: {gen_level})")
+    except Exception as e:
+        print(f" [!] Error during dynamic product discovery: {e}")
+        return False
+
+    # 2. Dynamic catalog files
     cat_url = 'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50'
     cat_payload = {
         'primaryDownloads': True,
         'otherDownloads': '',
         'searchQuery': '',
         'freeDownloads': True,
-        'displayGroup': 'VMware Workstation Pro 26H1 for Windows',
+        'displayGroup': display_group,
         'skuCode': '',
-        'release': '26H1u1',
-        'genLevel': '546859',
+        'release': release_ver,
+        'genLevel': str(gen_level),
         'language': 'EN',
         'os': '',
     }
 
+    discovered_file = None
     try:
         r_cat = s.post(cat_url, json=cat_payload, timeout=25)
         print(f" -> getDownloadableFiles status: HTTP {r_cat.status_code}")
         if r_cat.status_code == 200:
             if not r_cat.text.strip():
-                print(" [!] Catalog response body is empty (session may require full browser reload).")
+                print(" [!] Catalog response body is empty.")
             else:
                 data = r_cat.json()
                 if data.get('success'):
-                    content = data.get('data', {}).get('packlistDetails', {}).get('content', [])
-                    if content:
-                        f = content[0].get('fileDetails', [])[0]
+                    packlist = data.get('data', {}).get('packlistDetails', {}).get('content', [])
+                    if packlist:
+                        discovered_file = packlist[0].get('fileDetails', [])[0]
                         print(" [+] Successfully retrieved online file metadata!")
-                        print(f"     - File:   {f.get('fileName')}")
-                        print(f"     - Size:   {f.get('fileSize')} bytes")
-                        print(f"     - SHA256: {f.get('sha2Chksum')}")
-                        print(f"     - MD5:    {f.get('md5Chksum')}")
+                        print(f"     - File:   {discovered_file.get('fileName')}")
+                        print(f"     - Size:   {discovered_file.get('fileSize')} bytes")
+                        print(f"     - SHA256: {discovered_file.get('sha2Chksum')}")
+                        print(f"     - MD5:    {discovered_file.get('md5Chksum')}")
                 else:
                     print(f" [!] API response: {data.get('message')}")
         else:
@@ -84,24 +119,27 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
     except Exception as e:
         print(f" [!] Error verifying catalog: {e}")
 
-    # 2. Test download order creation
+    if not discovered_file:
+        return False
+
+    # 3. Dynamic download order creation
     order_url = 'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder'
     order_payload = {
         'downloadType': 'HTTP',
         'productName': 'VMware Workstation Pro',
-        'releaseDescription': 'VMware Workstation Pro (For Windows)',
+        'releaseDescription': display_group,
         'skuCode': '',
-        'displayGroup': 'VMware Workstation Pro 26H1 for Windows',
-        'release': '26H1u1',
-        'genLevel': '546859',
+        'displayGroup': display_group,
+        'release': release_ver,
+        'genLevel': str(gen_level),
         'language': 'EN',
         'os': '',
         'eulaId': 17290717,
         'accessToken': False,
         'siteId': '105246',
         'orderedFiles': [{
-            'filePath': '546859/VMware-Workstation-Full-26H1u1-25688693.exe',
-            'fileSize': 280609368,
+            'filePath': discovered_file.get('filePath'),
+            'fileSize': discovered_file.get('fileSize'),
         }],
     }
 
@@ -150,7 +188,7 @@ def save_session(cookies_dict, csrf_token='YaLAJUoR', email=''):
         print(f" [!] Failed writing session file: {e}")
 
 
-def run_playwright_login(email='', password='', headless=False):
+def run_playwright_login(email='', password=''):
     print("""
 ========================================================================
    Broadcom Account Login via Playwright (Real Browser Engine)
@@ -162,11 +200,11 @@ def run_playwright_login(email='', password='', headless=False):
     if not password:
         password = getpass.getpass(" [?] Enter Broadcom Account Password: ").strip()
 
-    print(f"\n [*] Launching Chromium browser (Headless={headless})...")
+    print("\n [*] Launching Chromium browser (Interactive Real GUI Engine)...")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
-            headless=headless,
+            headless=False,
             args=[
                 '--disable-blink-features=AutomationControlled',
                 '--start-maximized',
@@ -295,16 +333,14 @@ def run_playwright_login(email='', password='', headless=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Broadcom Playwright Login Tester')
+    parser = argparse.ArgumentParser(description='Broadcom Playwright Real Browser Login')
     parser.add_argument('--email', help='Broadcom account email')
     parser.add_argument('--password', help='Broadcom account password')
-    parser.add_argument('--headless', action='store_true', help='Run browser in headless mode')
     args = parser.parse_args()
 
     run_playwright_login(
         email=args.email or '',
         password=args.password or '',
-        headless=args.headless,
     )
 
 

@@ -85,18 +85,12 @@ class AuthService {
       final cookieHeader = session.cookieJar ?? session.sessionToken;
       final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
       final resp = await dio.post(
-        'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50',
+        'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
         data: {
-          'primaryDownloads': true,
-          'otherDownloads': '',
-          'searchQuery': '',
-          'freeDownloads': true,
-          'displayGroup': 'VMware Workstation Pro 26H1 for Windows',
-          'skuCode': '',
-          'release': '26H1u1',
-          'genLevel': '546859',
+          'subFamily': 'VMware Workstation Pro',
+          'searchVal': '',
           'language': 'EN',
-          'os': '',
+          'freeDownloads': true,
         },
         options: Options(
           headers: {
@@ -104,14 +98,16 @@ class AuthService {
             'x-csrf-token': csrfHeader,
             'Origin': 'https://support.broadcom.com',
             'Referer':
-                'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro&displayGroup=VMware%20Workstation%20Pro%2026H1%20for%20Windows&release=26H1u1&os=&servicePk=546859&language=EN&freeDownloads=true',
+                'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language':
                 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
           },
         ),
       );
-      if (resp.statusCode == 200 && resp.data is Map && resp.data['success'] == true) {
+      if (resp.statusCode == 200 &&
+          resp.data is Map &&
+          resp.data['success'] == true) {
         return true;
       }
     } catch (_) {}

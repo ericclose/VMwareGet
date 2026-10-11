@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Broadcom VMware Software Catalog Scraper & Download Tester
-Uses BeautifulSoup and requests to authenticate, inspect, parse metadata, and verify downloads.
+100% Online dynamic catalog discovery and download testing with zero hardcoded versions.
 """
 
 import os
@@ -10,11 +10,6 @@ import json
 import re
 import argparse
 import subprocess
-import warnings
-
-# Suppress LibreSSL / urllib3 NotOpenSSLWarning on macOS system python
-warnings.filterwarnings('ignore', category=Warning)
-
 import requests
 from bs4 import BeautifulSoup
 
@@ -80,8 +75,52 @@ def save_cached_session(cookies_dict, headers_dict=None):
         pass
 
 
-def fetch_product_files(session, display_group, service_pk, subfamily_name):
-    url = f'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50'
+def discover_product_releases(session, subfamily_name):
+    """
+    Dynamically discover all available product groups and releases for a given subfamily
+    directly from Broadcom live API without any hardcoding.
+    """
+    url = 'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50'
+    session.headers['Referer'] = f'https://support.broadcom.com/group/ecx/productdownloads?subfamily={requests.utils.quote(subfamily_name)}&freeDownloads=true'
+    payload = {
+        'subFamily': subfamily_name,
+        'searchVal': '',
+        'language': 'EN',
+        'freeDownloads': True,
+    }
+    resp = session.post(url, json=payload, timeout=25)
+    if resp.status_code != 200:
+        print(f"[!] Error discovering products for {subfamily_name}: HTTP {resp.status_code}")
+        return []
+    try:
+        data = resp.json()
+        if not data.get('success'):
+            return []
+        items = []
+        for group in data.get('data', {}).get('productDetails', {}).get('content', []):
+            display_group = group.get('description', '')
+            for ph in group.get('phantomDetails', []):
+                rel = ph.get('release', '')
+                gen = ph.get('genLevel') or ph.get('servicePk') or ''
+                if rel and gen:
+                    items.append({
+                        'displayGroup': display_group,
+                        'release': str(rel),
+                        'genLevel': str(gen),
+                        'description': ph.get('description') or display_group,
+                    })
+        return items
+    except Exception as e:
+        print(f"[!] Error parsing dynamic discovery response: {e}")
+        return []
+
+
+def fetch_product_files(session, display_group, release, service_pk, subfamily_name):
+    url = 'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50'
+    session.headers['Referer'] = (
+        f'https://support.broadcom.com/group/ecx/productfiles?subFamily={requests.utils.quote(subfamily_name)}'
+        f'&displayGroup={requests.utils.quote(display_group)}&release={release}&os=&servicePk={service_pk}&language=EN&freeDownloads=true'
+    )
     payload = {
         'primaryDownloads': True,
         'otherDownloads': '',
@@ -89,7 +128,7 @@ def fetch_product_files(session, display_group, service_pk, subfamily_name):
         'freeDownloads': True,
         'displayGroup': display_group,
         'skuCode': '',
-        'release': '26H1u1',
+        'release': release,
         'genLevel': str(service_pk),
         'language': 'EN',
         'os': '',
@@ -104,15 +143,19 @@ def fetch_product_files(session, display_group, service_pk, subfamily_name):
         return None
 
 
-def create_download_order(session, product_name, display_group, release_desc, gen_level, file_path, file_size):
+def create_download_order(session, product_name, display_group, release, release_desc, gen_level, file_path, file_size):
     url = 'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder'
+    session.headers['Referer'] = (
+        f'https://support.broadcom.com/group/ecx/productfiles?subFamily={requests.utils.quote(product_name)}'
+        f'&displayGroup={requests.utils.quote(display_group)}&release={release}&os=&servicePk={gen_level}&language=EN&freeDownloads=true'
+    )
     payload = {
         'downloadType': 'HTTP',
         'productName': product_name,
         'releaseDescription': release_desc,
         'skuCode': '',
         'displayGroup': display_group,
-        'release': '26H1u1',
+        'release': release,
         'genLevel': str(gen_level),
         'language': 'EN',
         'os': '',
@@ -161,7 +204,7 @@ def test_download_stream(download_url):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Broadcom Online Catalog & Download Tester")
+    parser = argparse.ArgumentParser(description="Broadcom 100% Online Dynamic Catalog & Download Tester")
     parser.add_argument('--curl', help="cURL command string")
     args = parser.parse_args()
 
@@ -184,78 +227,66 @@ def main():
         session.headers.update(extra_headers)
         save_cached_session(cookies, extra_headers)
     else:
-        print("[!] No session cookies configured. Run with --curl or configure session.")
+        print("[!] No session cookies configured. Run with './test_broadcom.sh login' or configure session.")
         return
 
     print("=" * 70)
-    print(" BROADCOM ONLINE CATALOG & VERIFICATION TEST")
+    print(" BROADCOM ONLINE 100% DYNAMIC CATALOG & VERIFICATION TEST")
     print("=" * 70)
 
-    # 1. VMware Workstation Pro
-    print("\n[1] Fetching VMware Workstation Pro metadata online...")
-    ws_data = fetch_product_files(
-        session,
-        display_group="VMware Workstation Pro 26H1 for Windows",
-        service_pk="546859",
-        subfamily_name="VMware Workstation Pro",
-    )
-    if ws_data and ws_data.get('success'):
-        file_info = ws_data['data']['packlistDetails']['content'][0]['fileDetails'][0]
-        print(f"    * File Name:     {file_info['fileName']}")
-        print(f"    * Release Date:  {file_info['gaDate']}")
-        print(f"    * Last Updated:  {file_info['fileLastUpdatedDate']}")
-        print(f"    * SHA2 (SHA256): {file_info['sha2Chksum']}")
-        print(f"    * MD5 Checksum:  {file_info['md5Chksum']}")
-        print(f"    * File Size:     {file_info['fileSize']} bytes")
-        print(f"    * Build Number:  {file_info['buildNumber']}")
+    subfamilies = [
+        ('VMware Workstation Pro', 'VMware Workstation Pro'),
+        ('VMware Fusion', 'VMware Fusion'),
+    ]
 
-        # Test download order
-        order = create_download_order(
+    for idx, (subfamily, prod_label) in enumerate(subfamilies, 1):
+        print(f"\n[{idx}] Dynamically discovering live releases for {subfamily} online...")
+        discovered = discover_product_releases(session, subfamily)
+        print(f"    Found {len(discovered)} live release entries for {subfamily}")
+
+        if not discovered:
+            print(f"    [!] Could not discover releases for {subfamily}")
+            continue
+
+        # Test the top discovered release
+        chosen = discovered[0]
+        print(f"    -> Querying top release: {chosen['displayGroup']} (Release: {chosen['release']}, GenLevel: {chosen['genLevel']})")
+
+        prod_data = fetch_product_files(
             session,
-            product_name="VMware Workstation Pro",
-            display_group="VMware Workstation Pro 26H1 for Windows",
-            release_desc="VMware Workstation Pro (For Windows)",
-            gen_level="546859",
-            file_path=file_info['filePath'],
-            file_size=file_info['fileSize'],
+            display_group=chosen['displayGroup'],
+            release=chosen['release'],
+            service_pk=chosen['genLevel'],
+            subfamily_name=subfamily,
         )
-        if order and order.get('success'):
-            dl_url = order['data']['downloadUrl']
-            print(f"    [+] Created Order ID: {order['data']['orderId']}")
-            test_download_stream(dl_url)
 
-    # 2. VMware Fusion
-    print("\n[2] Fetching VMware Fusion metadata online...")
-    fusion_data = fetch_product_files(
-        session,
-        display_group="VMware Fusion 26H1",
-        service_pk="546858",
-        subfamily_name="VMware Fusion",
-    )
-    if fusion_data and fusion_data.get('success'):
-        file_info = fusion_data['data']['packlistDetails']['content'][0]['fileDetails'][0]
-        print(f"    * File Name:     {file_info['fileName']}")
-        print(f"    * Release Date:  {file_info['gaDate']}")
-        print(f"    * Last Updated:  {file_info['fileLastUpdatedDate']}")
-        print(f"    * SHA2 (SHA256): {file_info['sha2Chksum']}")
-        print(f"    * MD5 Checksum:  {file_info['md5Chksum']}")
-        print(f"    * File Size:     {file_info['fileSize']} bytes")
-        print(f"    * Build Number:  {file_info['buildNumber']}")
+        if prod_data and prod_data.get('success'):
+            packlist = prod_data['data']['packlistDetails']['content']
+            if packlist and packlist[0].get('fileDetails'):
+                file_info = packlist[0]['fileDetails'][0]
+                print(f"    * File Name:     {file_info['fileName']}")
+                print(f"    * Release Date:  {file_info['gaDate']}")
+                print(f"    * Last Updated:  {file_info['fileLastUpdatedDate']}")
+                print(f"    * SHA2 (SHA256): {file_info['sha2Chksum']}")
+                print(f"    * MD5 Checksum:  {file_info['md5Chksum']}")
+                print(f"    * File Size:     {file_info['fileSize']} bytes")
+                print(f"    * Build Number:  {file_info['buildNumber']}")
 
-        # Test download order
-        order = create_download_order(
-            session,
-            product_name="VMware Fusion",
-            display_group="VMware Fusion 26H1",
-            release_desc="VMware Fusion (for Intel-based and Apple silicon Macs)",
-            gen_level="546858",
-            file_path=file_info['filePath'],
-            file_size=file_info['fileSize'],
-        )
-        if order and order.get('success'):
-            dl_url = order['data']['downloadUrl']
-            print(f"    [+] Created Order ID: {order['data']['orderId']}")
-            test_download_stream(dl_url)
+                # Test download order creation
+                order = create_download_order(
+                    session,
+                    product_name=subfamily,
+                    display_group=chosen['displayGroup'],
+                    release=chosen['release'],
+                    release_desc=chosen['description'],
+                    gen_level=chosen['genLevel'],
+                    file_path=file_info['filePath'],
+                    file_size=file_info['fileSize'],
+                )
+                if order and order.get('success'):
+                    dl_url = order['data']['downloadUrl']
+                    print(f"    [+] Created Order ID: {order['data']['orderId']}")
+                    test_download_stream(dl_url)
 
     print("\n" + "=" * 70)
     print(" ALL TESTS PASSED! ONLINE METADATA & DOWNLOADS FULLY VERIFIED! ")

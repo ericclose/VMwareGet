@@ -70,140 +70,183 @@ class CatalogService {
 
     final List<VMwareReleaseItem> onlineItems = [];
 
-    // Query configurations for products on Broadcom portal
-    final queryTargets = [
+    // Dynamically discover all products and releases online from Broadcom
+    final productLines = [
       {
         'family': VMwareProductFamily.workstationPro,
-        'displayGroup': 'VMware Workstation Pro 26H1 for Windows',
-        'release': '26H1u1',
-        'genLevel': '546859',
-        'platform': TargetPlatform.windows,
-        'platformLabel': 'Windows 64-bit (.exe)',
+        'subFamily': 'VMware Workstation Pro',
       },
       {
         'family': VMwareProductFamily.fusion,
-        'displayGroup': 'VMware Fusion 26H1',
-        'release': '26H1u1',
-        'genLevel': '546858',
-        'platform': TargetPlatform.macos,
-        'platformLabel': 'macOS Universal (.dmg)',
+        'subFamily': 'VMware Fusion',
       },
     ];
 
-    for (final target in queryTargets) {
+    for (final prod in productLines) {
+      final family = prod['family'] as VMwareProductFamily;
+      final subFamily = prod['subFamily'] as String;
+
       try {
-        final subFamily = target['family'] == VMwareProductFamily.workstationPro
-            ? 'VMware Workstation Pro'
-            : 'VMware Fusion';
-        final refererUrl =
-            'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(subFamily)}&displayGroup=${Uri.encodeComponent(target['displayGroup'] as String)}&release=${target['release']}&os=&servicePk=${target['genLevel']}&language=EN&freeDownloads=true';
-
-        final options = Options(
-          headers: {
-            'Cookie': cookieHeader,
-            'x-csrf-token': csrfHeader,
-            'Origin': 'https://support.broadcom.com',
-            'Referer': refererUrl,
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language':
-                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
-          },
-        );
-
-        final resp = await _dio.post(
-          'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50',
+        final skuResp = await _dio.post(
+          'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
           data: {
-            'primaryDownloads': true,
-            'otherDownloads': '',
-            'searchQuery': '',
-            'freeDownloads': true,
-            'displayGroup': target['displayGroup'],
-            'skuCode': '',
-            'release': target['release'],
-            'genLevel': target['genLevel'],
+            'subFamily': subFamily,
+            'searchVal': '',
             'language': 'EN',
-            'os': '',
+            'freeDownloads': true,
           },
-          options: options,
+          options: Options(
+            headers: {
+              'Cookie': cookieHeader,
+              'x-csrf-token': csrfHeader,
+              'Origin': 'https://support.broadcom.com',
+              'Referer':
+                  'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
+              'Accept': 'application/json, text/plain, */*',
+              'Accept-Language':
+                  'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+            },
+          ),
         );
 
-        if (resp.statusCode == 200 && resp.data != null) {
-          final data = resp.data is Map ? resp.data as Map : {};
-          if (data['success'] == true) {
-            final packlist =
-                data['data']?['packlistDetails']?['content'] as List?;
-            if (packlist != null) {
-              for (final packItem in packlist) {
-                if (packItem is! Map) continue;
-                final releaseVer = packItem['release']?.toString() ??
-                    (target['release'] as String);
-                final packDesc = packItem['description']?.toString() ?? '';
-                final fileDetails = packItem['fileDetails'] as List?;
-                if (fileDetails == null) continue;
+        if (skuResp.statusCode != 200 || skuResp.data == null) continue;
+        final skuData = skuResp.data is Map ? skuResp.data as Map : {};
+        if (skuData['success'] != true) continue;
 
-                for (final fileItem in fileDetails) {
-                  if (fileItem is! Map) continue;
-                  final fileName = fileItem['fileName']?.toString() ?? '';
-                  final rawSize = fileItem['fileSize'] as num? ?? 0;
-                  final sizeBytes = rawSize.toInt();
-                  final sizeFormatted = sizeBytes > 0
-                      ? '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
-                      : 'Unknown';
+        final content =
+            skuData['data']?['productDetails']?['content'] as List?;
+        if (content == null) continue;
 
-                  final TargetPlatform resolvedPlatform;
-                  final String resolvedPlatformLabel;
+        for (final groupItem in content) {
+          if (groupItem is! Map) continue;
+          final displayGroup = groupItem['description']?.toString() ?? '';
+          final phantoms = groupItem['phantomDetails'] as List?;
+          if (phantoms == null) continue;
 
-                  if (fileName.toLowerCase().endsWith('.exe')) {
-                    resolvedPlatform = TargetPlatform.windows;
-                    resolvedPlatformLabel = 'Windows 64-bit (.exe)';
-                  } else if (fileName.toLowerCase().endsWith('.dmg')) {
-                    resolvedPlatform = TargetPlatform.macos;
-                    resolvedPlatformLabel = 'macOS Universal (.dmg)';
-                  } else if (fileName.toLowerCase().endsWith('.bundle') ||
-                      fileName.toLowerCase().endsWith('.tar.gz')) {
-                    resolvedPlatform = TargetPlatform.linux;
-                    resolvedPlatformLabel = 'Linux 64-bit (.bundle)';
-                  } else {
-                    resolvedPlatform = target['platform'] as TargetPlatform;
-                    resolvedPlatformLabel =
-                        target['platformLabel'] as String;
+          for (final phantom in phantoms) {
+            if (phantom is! Map) continue;
+            final releaseVer = phantom['release']?.toString();
+            final servicePk =
+                (phantom['genLevel'] ?? phantom['servicePk'])?.toString();
+            if (releaseVer == null || servicePk == null || servicePk.isEmpty) {
+              continue;
+            }
+
+            final refererUrl =
+                'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(subFamily)}&displayGroup=${Uri.encodeComponent(displayGroup)}&release=$releaseVer&os=&servicePk=$servicePk&language=EN&freeDownloads=true';
+
+            try {
+              final filesResp = await _dio.post(
+                'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50',
+                data: {
+                  'primaryDownloads': true,
+                  'otherDownloads': '',
+                  'searchQuery': '',
+                  'freeDownloads': true,
+                  'displayGroup': displayGroup,
+                  'skuCode': '',
+                  'release': releaseVer,
+                  'genLevel': servicePk,
+                  'language': 'EN',
+                  'os': '',
+                },
+                options: Options(
+                  headers: {
+                    'Cookie': cookieHeader,
+                    'x-csrf-token': csrfHeader,
+                    'Origin': 'https://support.broadcom.com',
+                    'Referer': refererUrl,
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language':
+                        'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+                  },
+                ),
+              );
+
+              if (filesResp.statusCode == 200 && filesResp.data != null) {
+                final filesData =
+                    filesResp.data is Map ? filesResp.data as Map : {};
+                if (filesData['success'] == true) {
+                  final packlist =
+                      filesData['data']?['packlistDetails']?['content'] as List?;
+                  if (packlist != null) {
+                    for (final packItem in packlist) {
+                      if (packItem is! Map) continue;
+                      final packDesc =
+                          packItem['description']?.toString() ?? displayGroup;
+                      final fileDetails = packItem['fileDetails'] as List?;
+                      if (fileDetails == null) continue;
+
+                      for (final fileItem in fileDetails) {
+                        if (fileItem is! Map) continue;
+                        final fileName = fileItem['fileName']?.toString() ?? '';
+                        final rawSize = fileItem['fileSize'] as num? ?? 0;
+                        final sizeBytes = rawSize.toInt();
+                        final sizeFormatted = sizeBytes > 0
+                            ? '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
+                            : 'Unknown';
+
+                        final TargetPlatform resolvedPlatform;
+                        final String resolvedPlatformLabel;
+
+                        if (fileName.toLowerCase().endsWith('.exe')) {
+                          resolvedPlatform = TargetPlatform.windows;
+                          resolvedPlatformLabel = 'Windows 64-bit (.exe)';
+                        } else if (fileName.toLowerCase().endsWith('.dmg')) {
+                          resolvedPlatform = TargetPlatform.macos;
+                          resolvedPlatformLabel = 'macOS Universal (.dmg)';
+                        } else if (fileName.toLowerCase().endsWith('.bundle') ||
+                            fileName.toLowerCase().endsWith('.tar.gz')) {
+                          resolvedPlatform = TargetPlatform.linux;
+                          resolvedPlatformLabel = 'Linux 64-bit (.bundle)';
+                        } else {
+                          resolvedPlatform = family ==
+                                  VMwareProductFamily.workstationPro
+                              ? (displayGroup.toLowerCase().contains('linux')
+                                  ? TargetPlatform.linux
+                                  : TargetPlatform.windows)
+                              : TargetPlatform.macos;
+                          resolvedPlatformLabel = resolvedPlatform.name;
+                        }
+
+                        onlineItems.add(
+                          VMwareReleaseItem(
+                            id: '${family.name}-$releaseVer-${fileItem['buildNumber'] ?? fileName.hashCode}',
+                            family: family,
+                            version: releaseVer,
+                            buildNumber:
+                                fileItem['buildNumber']?.toString() ?? '',
+                            platform: resolvedPlatform,
+                            platformLabel: resolvedPlatformLabel,
+                            fileName: fileName,
+                            fileSize: sizeFormatted,
+                            fileSizeBytes: sizeBytes,
+                            releaseDate: fileItem['gaDate']?.toString() ?? '',
+                            lastUpdated:
+                                fileItem['fileLastUpdatedDate']?.toString() ??
+                                    '',
+                            sha256: fileItem['sha2Chksum']?.toString() ?? '',
+                            md5: fileItem['md5Chksum']?.toString() ?? '',
+                            officialDownloadUrl:
+                                'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(subFamily)}',
+                            notes: 'Broadcom live verified release.',
+                            displayGroup: displayGroup,
+                            servicePk: servicePk,
+                            filePath: fileItem['filePath']?.toString(),
+                            eulaId: 17290717,
+                            releaseDesc: packDesc,
+                            isOnlineFetched: true,
+                          ),
+                        );
+                      }
+                    }
                   }
-
-                  onlineItems.add(
-                    VMwareReleaseItem(
-                      id: '${(target['family'] as VMwareProductFamily).name}-$releaseVer-${fileItem['buildNumber'] ?? fileName.hashCode}',
-                      family: target['family'] as VMwareProductFamily,
-                      version: releaseVer,
-                      buildNumber: fileItem['buildNumber']?.toString() ?? '',
-                      platform: resolvedPlatform,
-                      platformLabel: resolvedPlatformLabel,
-                      fileName: fileName,
-                      fileSize: sizeFormatted,
-                      fileSizeBytes: sizeBytes,
-                      releaseDate: fileItem['gaDate']?.toString() ?? '',
-                      lastUpdated:
-                          fileItem['fileLastUpdatedDate']?.toString() ?? '',
-                      sha256: fileItem['sha2Chksum']?.toString() ?? '',
-                      md5: fileItem['md5Chksum']?.toString() ?? '',
-                      officialDownloadUrl:
-                          'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent((target['family'] as VMwareProductFamily) == VMwareProductFamily.workstationPro ? "VMware Workstation Pro" : "VMware Fusion")}',
-                      notes: 'Broadcom live verified release.',
-                      displayGroup: target['displayGroup'] as String,
-                      servicePk: target['genLevel'] as String,
-                      filePath: fileItem['filePath']?.toString(),
-                      eulaId: 17290717,
-                      releaseDesc: packDesc,
-                      isOnlineFetched: true,
-                    ),
-                  );
                 }
               }
-            }
+            } catch (_) {}
           }
         }
-      } catch (_) {
-        // Individual endpoint errors handled gracefully
-      }
+      } catch (_) {}
     }
 
     if (onlineItems.isNotEmpty) {

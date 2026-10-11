@@ -44,7 +44,7 @@ void main() {
     });
 
     test('AppLocalizations delivers pure English strings in English mode', () {
-      final l10nEn = AppLocalizations(const Locale('en'));
+      final l10nEn = lookupAppLocalizations(const Locale('en'));
       expect(l10nEn.catalog, equals('Catalog'));
       expect(l10nEn.downloads, equals('Downloads'));
       expect(l10nEn.settings, equals('Settings'));
@@ -64,7 +64,7 @@ void main() {
     });
 
     test('AppLocalizations delivers refined Chinese strings (信达雅)', () {
-      final l10nZh = AppLocalizations(const Locale('zh'));
+      final l10nZh = lookupAppLocalizations(const Locale('zh'));
       expect(l10nZh.catalog, equals('软件目录'));
       expect(l10nZh.downloads, equals('传输管理'));
       expect(l10nZh.settings, equals('偏好设置'));
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('AppLocalizations delivers pure Esperanto strings (eo)', () {
-      final l10nEo = AppLocalizations(const Locale('eo'));
+      final l10nEo = lookupAppLocalizations(const Locale('eo'));
       expect(l10nEo.catalog, equals('Katalogo'));
       expect(l10nEo.downloads, equals('Elŝutoj'));
       expect(l10nEo.settings, equals('Agordoj'));

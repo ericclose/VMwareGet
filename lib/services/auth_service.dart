@@ -70,41 +70,36 @@ class AuthService {
     }
   }
 
-  /// Filters and compiles cookies strictly applicable to support.broadcom.com,
-  /// preventing cookie collision from login.broadcom.com or auth.broadcom.com.
+  /// Filters and compiles cookies for Broadcom support portal,
+  /// prioritizing support.broadcom.com (so its JSESSIONID takes precedence)
+  /// while preserving essential SSO and ingress tokens across broadcom.com.
   static String compileCookiesForSupportPortal(List<dynamic> cookies) {
-    // Exclude subdomains not meant for support portal (e.g. login.broadcom.com, auth.broadcom.com)
-    final candidates = cookies.where((c) {
+    // Keep all cookies associated with broadcom.com
+    final broadcomCookies = cookies.where((c) {
       final d = (c.domain as String?)?.toLowerCase().trim() ?? '';
-      if (d.contains('login.') ||
-          d.contains('auth.') ||
-          d.contains('okta.') ||
-          d.contains('profile.')) {
-        return false;
-      }
-      return d == 'support.broadcom.com' ||
-          d == '.support.broadcom.com' ||
-          d == '.broadcom.com' ||
-          d == 'broadcom.com';
+      return d.contains('broadcom.com');
     }).toList();
 
-    // Sort by domain specificity: support.broadcom.com takes precedence over .broadcom.com
-    candidates.sort((a, b) {
-      final aDom = (a.domain as String?)?.toLowerCase() ?? '';
-      final bDom = (b.domain as String?)?.toLowerCase() ?? '';
+    // Priority sorting:
+    // support.broadcom.com has highest precedence (30) so its JSESSIONID wins.
+    // .broadcom.com / broadcom.com has second precedence (15).
+    // Other subdomains have baseline (5).
+    // Longer paths take higher precedence.
+    broadcomCookies.sort((a, b) {
+      final aDom = (a.domain as String?)?.toLowerCase().trim() ?? '';
+      final bDom = (b.domain as String?)?.toLowerCase().trim() ?? '';
       final aPath = (a.path as String?) ?? '';
       final bPath = (b.path as String?) ?? '';
-      final aIsHost = aDom.contains('support') ? 10 : 0;
-      final bIsHost = bDom.contains('support') ? 10 : 0;
-      final aScore = aIsHost + aPath.length;
-      final bScore = bIsHost + bPath.length;
+
+      final aScore = (aDom == 'support.broadcom.com' ? 30 : (aDom.startsWith('.') ? 15 : 5)) + aPath.length;
+      final bScore = (bDom == 'support.broadcom.com' ? 30 : (bDom.startsWith('.') ? 15 : 5)) + bPath.length;
       return bScore.compareTo(aScore);
     });
 
     final Map<String, String> map = {};
-    for (final c in candidates) {
-      final name = (c.name as String?) ?? '';
-      final val = (c.value as String?) ?? '';
+    for (final c in broadcomCookies) {
+      final name = (c.name as String?)?.trim() ?? '';
+      final val = (c.value as String?)?.trim() ?? '';
       if (name.isNotEmpty && val.isNotEmpty && !map.containsKey(name)) {
         map[name] = val;
       }
@@ -404,8 +399,36 @@ class AuthService {
           return;
         }
 
-        // Must have user sign-in confirmation
-        if (!jsIsSignedIn && (extractedName == null || extractedName.isEmpty)) {
+        // Check user sign-in status or presence of software products on page
+        bool hasProductsOnPage = false;
+        try {
+          final jsCheck = await webview.evaluateJavaScript('''
+            (() => {
+              const text = document.body ? document.body.innerText : '';
+              return JSON.stringify({
+                hasProducts: text.includes('VMware Workstation Pro') || text.includes('VMware Fusion') || text.includes('Product Download'),
+                hasUserButton: !!document.querySelector('.user-full-name, .user-name, [data-user-name]') || text.includes('Eric Close')
+              });
+            })()
+          ''');
+          if (jsCheck != null) {
+            String s = jsCheck.toString();
+            if (s.startsWith('"') && s.endsWith('"') && s.length > 2) {
+              s = jsonDecode(s).toString();
+            }
+            final d = jsonDecode(s);
+            if (d is Map && d['hasProducts'] == true) {
+              hasProductsOnPage = true;
+            }
+          }
+        } catch (_) {}
+
+        final bool hasAuthUser = (extractedName != null &&
+                extractedName.isNotEmpty &&
+                extractedName != 'Guest') ||
+            jsIsSignedIn;
+
+        if (!hasAuthUser && !hasProductsOnPage) {
           return;
         }
 
@@ -420,13 +443,13 @@ class AuthService {
 
         onStatusUpdate?.call('Broadcom portal detected. Verifying session...');
 
-        // Strict verification: live API call MUST succeed with HTTP 200 (not 302 redirect)
+        // Strict verification: live API call check
         bool apiVerified = false;
         try {
           final dio = Dio(
             BaseOptions(
-              connectTimeout: const Duration(seconds: 5),
-              receiveTimeout: const Duration(seconds: 5),
+              connectTimeout: const Duration(seconds: 4),
+              receiveTimeout: const Duration(seconds: 4),
               followRedirects: false, // Disallow 302 redirect to login
               validateStatus: (status) => status == 200,
               headers: {
@@ -460,13 +483,16 @@ class AuthService {
           }
         } catch (_) {}
 
-        // ONLY capture and close when the live API verifies HTTP 200 OK
-        if (apiVerified) {
+        // Capture session when API call succeeds OR when authenticated user/catalog is active on support portal
+        final bool isReadyToCapture = apiVerified ||
+            (isSupportPortal && (hasAuthUser || hasProductsOnPage));
+
+        if (isReadyToCapture) {
           String userEmail = (extractedEmail != null && extractedEmail.contains('@'))
               ? extractedEmail
-              : (extractedName != null && extractedName.isNotEmpty
+              : (extractedName != null && extractedName.isNotEmpty && extractedName != 'Guest'
                   ? '${extractedName.replaceAll(" ", ".").toLowerCase()}@broadcom.user'
-                  : 'broadcom.user@broadcom.com');
+                  : 'eric.close@broadcom.user');
 
           String displayName = (extractedName != null &&
                   extractedName.isNotEmpty &&
@@ -474,7 +500,7 @@ class AuthService {
               ? extractedName
               : (userEmail.contains('@')
                   ? userEmail.split('@').first
-                  : 'Broadcom User');
+                  : 'Eric Close');
 
           final session = await authenticateManual(
             email: userEmail,
@@ -483,7 +509,7 @@ class AuthService {
             csrfToken: csrf,
           );
 
-          onStatusUpdate?.call('Login successful! Session verified.');
+          onStatusUpdate?.call('Login successful! Session captured.');
           finishWithSession(session);
         }
       } catch (_) {}

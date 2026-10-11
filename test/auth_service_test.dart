@@ -33,24 +33,26 @@ void main() {
       expect(matches.length, equals(1));
     });
 
-    test('compileCookiesForSupportPortal filters out login/okta cookies and deduplicates', () {
+    test('compileCookiesForSupportPortal prioritizes support.broadcom.com JSESSIONID and preserves broadcom tokens', () {
       final cookies = [
         MockCookie(name: 'JSESSIONID', value: 'LOGIN_COOKIE', domain: 'login.broadcom.com'),
         MockCookie(name: 'sspsession', value: 'AUTH_TOKEN', domain: 'auth.broadcom.com'),
         MockCookie(name: 'JSESSIONID', value: 'SUPPORT_SESSION', domain: 'support.broadcom.com'),
         MockCookie(name: 'liferay-ingress', value: 'ROUTING_KEY', domain: '.broadcom.com'),
-        MockCookie(name: 'okta-cookie', value: 'OKTA_VAL', domain: 'broadcom.okta.com'),
+        MockCookie(name: 'google-analytics', value: 'IGNORE_ME', domain: 'google.com'),
       ];
 
       final header = AuthService.compileCookiesForSupportPortal(cookies);
 
-      // Must NOT contain login.broadcom.com or okta cookies
-      expect(header.contains('LOGIN_COOKIE'), isFalse);
-      expect(header.contains('AUTH_TOKEN'), isFalse);
-      expect(header.contains('OKTA_VAL'), isFalse);
+      // Must NOT contain external non-broadcom cookies
+      expect(header.contains('IGNORE_ME'), isFalse);
 
-      // MUST contain support portal cookies
+      // Support portal JSESSIONID must win over login.broadcom.com JSESSIONID
       expect(header.contains('JSESSIONID=SUPPORT_SESSION'), isTrue);
+      expect(header.contains('LOGIN_COOKIE'), isFalse);
+
+      // SSO tokens must be preserved
+      expect(header.contains('sspsession=AUTH_TOKEN'), isTrue);
       expect(header.contains('liferay-ingress=ROUTING_KEY'), isTrue);
     });
 

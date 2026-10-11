@@ -193,9 +193,11 @@ class AuthService {
 
     final webview = await WebviewWindow.create(
       configuration: const CreateConfiguration(
-        title: 'Broadcom Account Authentication - VMwareGet',
+        title: '',
         windowWidth: 1040,
         windowHeight: 760,
+        titleBarHeight: 42,
+        titleBarTopPadding: 0,
       ),
     );
 

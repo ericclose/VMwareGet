@@ -1,0 +1,351 @@
+name: Build & Release Multi-Platform
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.47.7'
+  APP_NAME: 'VMwareGet'
+  APP_ID: 'io.github.vmwareget'
+
+jobs:
+  # ============================================================================
+  # 1. macOS Build (.dmg)
+  # ============================================================================
+  build-macos:
+    name: Build macOS (.dmg)
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build macOS Release
+        run: |
+          flutter config --enable-macos-desktop
+          flutter build macos --release
+
+      - name: Package into DMG
+        run: |
+          mkdir -p dist
+          APP_PATH="build/macos/Build/Products/Release/VMwareGet.app"
+          if [ -d "$APP_PATH" ]; then
+            hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "$APP_PATH" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
+          else
+            echo "Packaging release directory..."
+            hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "build/macos/Build/Products/Release" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
+          fi
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/${{ env.APP_NAME }}-macOS.dmg
+
+  # ============================================================================
+  # 2. Windows Build (.exe)
+  # ============================================================================
+  build-windows:
+    name: Build Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Windows Release
+        run: |
+          flutter config --enable-windows-desktop
+          flutter build windows --release
+
+      - name: Package Windows Executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          $releasePath = "build\windows\x64\runner\Release"
+          Compress-Archive -Path "$releasePath\*" -DestinationPath "dist\${{ env.APP_NAME }}-Windows-x64.zip"
+          if (Test-Path "$releasePath\${{ env.APP_NAME }}.exe") {
+            Copy-Item "$releasePath\${{ env.APP_NAME }}.exe" -Destination "dist\${{ env.APP_NAME }}-Setup.exe"
+          }
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: dist/*
+
+  # ============================================================================
+  # 3. Linux Debian-based Build (.deb)
+  # ============================================================================
+  build-linux-deb:
+    name: Build Linux Debian (.deb)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev dpkg-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Linux Release
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --release
+
+      - name: Package .deb package
+        run: |
+          mkdir -p deb-pkg/DEBIAN
+          mkdir -p deb-pkg/usr/bin
+          mkdir -p deb-pkg/usr/lib/${{ env.APP_NAME }}
+          mkdir -p deb-pkg/usr/share/applications
+          mkdir -p dist
+
+          # Copy compiled bundle
+          cp -r build/linux/x64/release/bundle/* deb-pkg/usr/lib/${{ env.APP_NAME }}/
+
+          # Create wrapper launcher script
+          cat << 'EOF' > deb-pkg/usr/bin/vmwareget
+          #!/bin/bash
+          exec /usr/lib/VMwareGet/vmwareget "$@"
+          EOF
+          chmod +x deb-pkg/usr/bin/vmwareget
+
+          # Desktop file
+          cat << EOF > deb-pkg/usr/share/applications/${{ env.APP_ID }}.desktop
+          [Desktop Entry]
+          Name=VMwareGet
+          Comment=VMware Download & Account Companion App
+          Exec=/usr/bin/vmwareget
+          Terminal=false
+          Type=Application
+          Categories=Utility;System;
+          EOF
+
+          # Control file
+          VERSION_TAG="${GITHUB_REF_NAME#v}"
+          VERSION_TAG="${VERSION_TAG:-1.0.0}"
+          cat << EOF > deb-pkg/DEBIAN/control
+          Package: vmwareget
+          Version: ${VERSION_TAG}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: VMwareGet Contributors <dev@vmwareget.internal>
+          Description: VMware Download & Account Companion App (Cross-Platform)
+           Streamlined interface for authenticating with Broadcom ecosystem and downloading
+           official packages for VMware Workstation Pro and Fusion with cryptographic verification.
+          EOF
+
+          dpkg-deb --build deb-pkg "dist/${{ env.APP_NAME }}-Linux-amd64.deb"
+
+      - name: Upload Debian Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: dist/${{ env.APP_NAME }}-Linux-amd64.deb
+
+  # ============================================================================
+  # 4. Linux Fedora-based Build (.rpm)
+  # ============================================================================
+  build-linux-rpm:
+    name: Build Linux Fedora (.rpm)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build prerequisites and rpm tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev rpm alien
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux Release
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --release
+
+      - name: Package .rpm package
+        run: |
+          mkdir -p dist
+          VERSION_TAG="${GITHUB_REF_NAME#v}"
+          VERSION_TAG="${VERSION_TAG:-1.0.0}"
+
+          # Structure RPM buildroot
+          RPM_ROOT="$HOME/rpmbuild"
+          mkdir -p "$RPM_ROOT"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin"
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/lib/${{ env.APP_NAME }}"
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/share/applications"
+
+          cp -r build/linux/x64/release/bundle/* "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/lib/${{ env.APP_NAME }}/"
+
+          cat << 'EOF' > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin/vmwareget"
+          #!/bin/bash
+          exec /usr/lib/VMwareGet/vmwareget "$@"
+          EOF
+          chmod +x "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin/vmwareget"
+
+          cat << EOF > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/share/applications/${{ env.APP_ID }}.desktop"
+          [Desktop Entry]
+          Name=VMwareGet
+          Comment=VMware Download & Account Companion App
+          Exec=/usr/bin/vmwareget
+          Terminal=false
+          Type=Application
+          Categories=Utility;System;
+          EOF
+
+          cat << EOF > "$RPM_ROOT/SPECS/vmwareget.spec"
+          Name:           vmwareget
+          Version:        ${VERSION_TAG}
+          Release:        1%{?dist}
+          Summary:        VMware Download & Account Companion App
+          License:        MIT
+          URL:            https://github.com/vmwareget/vmwareget
+
+          %description
+          VMware Download & Account Companion App (Cross-Platform)
+
+          %files
+          /usr/bin/vmwareget
+          /usr/lib/${{ env.APP_NAME }}
+          /usr/share/applications/${{ env.APP_ID }}.desktop
+          EOF
+
+          rpmbuild -bb --target x86_64 --buildroot "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64" "$RPM_ROOT/SPECS/vmwareget.spec"
+          find "$RPM_ROOT/RPMS" -name "*.rpm" -exec cp {} "dist/${{ env.APP_NAME }}-Linux-x86_64.rpm" \;
+
+      - name: Upload RPM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          path: dist/${{ env.APP_NAME }}-Linux-x86_64.rpm
+
+  # ============================================================================
+  # 5. Android Build (.apk)
+  # ============================================================================
+  build-android:
+    name: Build Android (.apk)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Prepare APK Artifact
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ env.APP_NAME }}-Android.apk"
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/${{ env.APP_NAME }}-Android.apk
+
+  # ============================================================================
+  # 6. Release Publisher
+  # ============================================================================
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-windows, build-linux-deb, build-linux-rpm, build-android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

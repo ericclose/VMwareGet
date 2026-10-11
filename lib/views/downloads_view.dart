@@ -1,0 +1,139 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/download_provider.dart';
+import '../widgets/download_progress_tile.dart';
+
+class DownloadsView extends StatelessWidget {
+  final VoidCallback onNavigateToCatalog;
+
+  const DownloadsView({
+    super.key,
+    required this.onNavigateToCatalog,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final downloadProvider = Provider.of<DownloadProvider>(context);
+
+    final downloads = downloadProvider.allDownloads;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header banner with directory path
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.folder_special_rounded,
+                  size: 22,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Download Directory',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        downloadProvider.downloadDirectory ??
+                            'Resolving local path...',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Download stats header
+          Row(
+            children: [
+              Text(
+                'Active & Recent Transfers',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (downloadProvider.activeCount > 0)
+                Badge(
+                  label: Text('${downloadProvider.activeCount} active'),
+                  backgroundColor: colorScheme.primary,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Main list or empty state
+          Expanded(
+            child: downloads.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.download_done_rounded,
+                          size: 56,
+                          color: colorScheme.outlineVariant,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No active or past downloads',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Choose VMware Workstation Pro or Fusion to start downloading',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.tonalIcon(
+                          icon: const Icon(Icons.explore_rounded, size: 18),
+                          label: const Text('Browse Software Catalog'),
+                          onPressed: onNavigateToCatalog,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: downloads.length,
+                    itemBuilder: (ctx, i) {
+                      return DownloadProgressTile(item: downloads[i]);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}

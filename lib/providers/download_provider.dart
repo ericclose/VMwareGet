@@ -1,0 +1,158 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/download_item.dart';
+import '../models/vmware_product.dart';
+import '../services/download_service.dart';
+import '../utils/constants.dart';
+
+class DownloadProvider extends ChangeNotifier {
+  final DownloadService _downloadService = DownloadService();
+  final Map<String, DownloadItem> _items = {};
+  String? _customDownloadDir;
+
+  DownloadProvider() {
+    _initDirectory();
+  }
+
+  List<DownloadItem> get allDownloads => _items.values.toList()
+    ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+
+  List<DownloadItem> get activeDownloads => _items.values
+      .where((item) =>
+          item.status == DownloadStatus.downloading ||
+          item.status == DownloadStatus.queued ||
+          item.status == DownloadStatus.verifying)
+      .toList();
+
+  int get activeCount => activeDownloads.length;
+
+  String? get downloadDirectory => _customDownloadDir;
+
+  Future<void> _initDirectory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedDir = prefs.getString(AppConstants.storageKeyDownloadDir);
+    if (savedDir != null && savedDir.isNotEmpty) {
+      _customDownloadDir = savedDir;
+    } else {
+      _customDownloadDir =
+          await _downloadService.getDefaultDownloadDirectory();
+    }
+    notifyListeners();
+  }
+
+  Future<void> setDownloadDirectory(String directoryPath) async {
+    _customDownloadDir = directoryPath;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.storageKeyDownloadDir, directoryPath);
+    notifyListeners();
+  }
+
+  DownloadItem? getItemForRelease(String releaseId) {
+    return _items[releaseId];
+  }
+
+  Future<void> startDownload({
+    required VMwareReleaseItem release,
+    String? sessionCookie,
+  }) async {
+    final targetDir = _customDownloadDir ??
+        await _downloadService.getDefaultDownloadDirectory();
+    final destPath = p.join(targetDir, release.fileName);
+
+    final item = DownloadItem(
+      id: release.id,
+      release: release,
+      destinationPath: destPath,
+      totalBytes: release.fileSizeBytes,
+      startedAt: DateTime.now(),
+    );
+
+    _items[item.id] = item;
+    notifyListeners();
+
+    _downloadService.startOrResumeDownload(
+      item: item,
+      sessionCookie: sessionCookie,
+      onUpdate: (updated) {
+        _items[updated.id] = updated;
+        notifyListeners();
+      },
+    );
+  }
+
+  void pauseDownload(String id) {
+    final item = _items[id];
+    if (item != null) {
+      _downloadService.pauseDownload(item);
+      notifyListeners();
+    }
+  }
+
+  void resumeDownload({
+    required String id,
+    String? sessionCookie,
+  }) {
+    final item = _items[id];
+    if (item != null) {
+      _downloadService.startOrResumeDownload(
+        item: item,
+        sessionCookie: sessionCookie,
+        onUpdate: (updated) {
+          _items[updated.id] = updated;
+          notifyListeners();
+        },
+      );
+    }
+  }
+
+  Future<void> reVerifyChecksum(String id) async {
+    final item = _items[id];
+    if (item != null) {
+      await _downloadService.verifyDownloadedFile(
+        item: item,
+        onUpdate: (updated) {
+          _items[updated.id] = updated;
+          notifyListeners();
+        },
+      );
+    }
+  }
+
+  Future<void> openContainingFolder(String id) async {
+    final item = _items[id];
+    if (item != null) {
+      await _downloadService.openContainingFolder(item.destinationPath);
+    }
+  }
+
+  Future<void> openDownloadedFile(String id) async {
+    final item = _items[id];
+    if (item != null) {
+      await _downloadService.openFile(item.destinationPath);
+    }
+  }
+
+  Future<void> deleteDownload({
+    required String id,
+    bool deleteLocalFile = false,
+  }) async {
+    final item = _items[id];
+    if (item != null) {
+      if (item.status == DownloadStatus.downloading) {
+        pauseDownload(id);
+      }
+      if (deleteLocalFile) {
+        try {
+          final file = File(item.destinationPath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
+      _items.remove(id);
+      notifyListeners();
+    }
+  }
+}

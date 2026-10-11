@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+import '../models/auth_session.dart';
+import '../services/auth_service.dart';
+
+enum AuthStatus {
+  initial,
+  authenticated,
+  unauthenticated,
+}
+
+class AuthProvider extends ChangeNotifier {
+  final AuthService _authService = AuthService();
+
+  AuthStatus _status = AuthStatus.initial;
+  AuthSession? _currentSession;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  AuthStatus get status => _status;
+  AuthSession? get currentSession => _currentSession;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  Future<void> checkAuth() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final session = await _authService.loadSession();
+      if (session != null && session.isValid) {
+        _currentSession = session;
+        _status = AuthStatus.authenticated;
+      } else {
+        _currentSession = null;
+        _status = AuthStatus.unauthenticated;
+      }
+    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> loginWithManualToken({
+    required String email,
+    required String token,
+    String? displayName,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final session = await _authService.authenticateManual(
+        email: email,
+        tokenOrCookie: token,
+        displayName: displayName,
+      );
+      _currentSession = session;
+      _status = AuthStatus.authenticated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Authentication error: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    _isLoading = true;
+    notifyListeners();
+
+    await _authService.clearSession();
+    _currentSession = null;
+    _status = AuthStatus.unauthenticated;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> openBroadcomLoginPortal() async {
+    return await _authService.launchBroadcomLogin();
+  }
+
+  Future<bool> openBroadcomRegistrationPortal() async {
+    return await _authService.launchBroadcomRegister();
+  }
+}

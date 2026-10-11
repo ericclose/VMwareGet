@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vmware_product.dart';
+import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
 import 'metadata_panel.dart';
@@ -70,8 +71,25 @@ class CatalogView extends StatelessWidget {
                 onChanged: (val) => catalog.setSearchQuery(val),
               ),
             ),
-            const SizedBox(width: 12),
-            if (catalog.selectedFamily == VMwareProductFamily.workstationPro)
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              tooltip: 'Sync Online from Broadcom',
+              icon: catalog.isSyncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cloud_sync_rounded, size: 20),
+              onPressed: catalog.isSyncing
+                  ? null
+                  : () {
+                      final session = Provider.of<AuthProvider>(context, listen: false).currentSession;
+                      catalog.refreshFromOnline(session);
+                    },
+            ),
+            if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
+              const SizedBox(width: 4),
               PopupMenuButton<TargetPlatform?>(
                 tooltip: 'Filter Platform',
                 initialValue: catalog.platformFilter,
@@ -97,6 +115,7 @@ class CatalogView extends StatelessWidget {
                   ),
                 ],
               ),
+            ],
           ],
         );
 

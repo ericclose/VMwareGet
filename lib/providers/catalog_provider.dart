@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
 import '../services/catalog_service.dart';
 
@@ -9,9 +10,10 @@ class CatalogProvider extends ChangeNotifier {
   VMwareReleaseItem? _selectedRelease;
   TargetPlatform? _platformFilter;
   String _searchQuery = '';
+  bool _isSyncing = false;
+  String? _syncStatusMessage;
 
   CatalogProvider() {
-    // Select first release by default
     final initialList = _catalogService.getReleasesForFamily(_selectedFamily);
     if (initialList.isNotEmpty) {
       _selectedRelease = initialList.first;
@@ -22,6 +24,8 @@ class CatalogProvider extends ChangeNotifier {
   VMwareReleaseItem? get selectedRelease => _selectedRelease;
   TargetPlatform? get platformFilter => _platformFilter;
   String get searchQuery => _searchQuery;
+  bool get isSyncing => _isSyncing;
+  String? get syncStatusMessage => _syncStatusMessage;
 
   List<VMwareReleaseItem> get filteredReleases {
     return _catalogService.searchReleases(
@@ -53,5 +57,30 @@ class CatalogProvider extends ChangeNotifier {
   void setSearchQuery(String query) {
     _searchQuery = query;
     notifyListeners();
+  }
+
+  Future<void> refreshFromOnline(AuthSession? session) async {
+    if (session == null) return;
+    _isSyncing = true;
+    _syncStatusMessage = 'Connecting to Broadcom servers...';
+    notifyListeners();
+
+    try {
+      final success = await _catalogService.syncOnlineCatalog(session);
+      if (success) {
+        _syncStatusMessage = 'Catalog synced live from Broadcom';
+        final items = _catalogService.getReleasesForFamily(_selectedFamily);
+        if (items.isNotEmpty) {
+          _selectedRelease = items.first;
+        }
+      } else {
+        _syncStatusMessage = 'Offline cached catalog active';
+      }
+    } catch (e) {
+      _syncStatusMessage = 'Sync error: $e';
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
   }
 }

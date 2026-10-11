@@ -3,6 +3,7 @@ class AuthSession {
   final String displayName;
   final String sessionToken;
   final String? cookieJar;
+  final String? csrfToken;
   final DateTime createdAt;
   final DateTime expiresAt;
   final bool isExportComplianceVerified;
@@ -12,6 +13,7 @@ class AuthSession {
     required this.displayName,
     required this.sessionToken,
     this.cookieJar,
+    this.csrfToken,
     required this.createdAt,
     required this.expiresAt,
     this.isExportComplianceVerified = true,
@@ -24,6 +26,7 @@ class AuthSession {
         'displayName': displayName,
         'sessionToken': sessionToken,
         'cookieJar': cookieJar,
+        'csrfToken': csrfToken,
         'createdAt': createdAt.toIso8601String(),
         'expiresAt': expiresAt.toIso8601String(),
         'isExportComplianceVerified': isExportComplianceVerified,
@@ -35,6 +38,7 @@ class AuthSession {
       displayName: json['displayName'] as String? ?? 'Broadcom User',
       sessionToken: json['sessionToken'] as String,
       cookieJar: json['cookieJar'] as String?,
+      csrfToken: json['csrfToken'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       expiresAt: DateTime.parse(json['expiresAt'] as String),
       isExportComplianceVerified:

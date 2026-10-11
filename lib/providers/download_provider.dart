@@ -55,6 +55,7 @@ class DownloadProvider extends ChangeNotifier {
 
   Future<void> startDownload({
     required VMwareReleaseItem release,
+    AuthSession? session,
     String? sessionCookie,
   }) async {
     final targetDir = _customDownloadDir ??
@@ -74,7 +75,7 @@ class DownloadProvider extends ChangeNotifier {
 
     _downloadService.startOrResumeDownload(
       item: item,
-      sessionCookie: sessionCookie,
+      session: session,
       onUpdate: (updated) {
         _items[updated.id] = updated;
         notifyListeners();
@@ -92,13 +93,14 @@ class DownloadProvider extends ChangeNotifier {
 
   void resumeDownload({
     required String id,
+    AuthSession? session,
     String? sessionCookie,
   }) {
     final item = _items[id];
     if (item != null) {
       _downloadService.startOrResumeDownload(
         item: item,
-        sessionCookie: sessionCookie,
+        session: session,
         onUpdate: (updated) {
           _items[updated.id] = updated;
           notifyListeners();

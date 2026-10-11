@@ -137,6 +137,7 @@ class MetadataPanel extends StatelessWidget {
               onPressed: () {
                 downloadProvider.startDownload(
                   release: item,
+                  session: authSession,
                   sessionCookie: authSession?.cookieJar ??
                       authSession?.sessionToken,
                 );

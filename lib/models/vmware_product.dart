@@ -26,6 +26,14 @@ class VMwareReleaseItem {
   final String officialDownloadUrl;
   final String notes;
 
+  // Broadcom API online identifiers
+  final String? displayGroup;
+  final String? servicePk;
+  final String? filePath;
+  final int? eulaId;
+  final String? releaseDesc;
+  final bool isOnlineFetched;
+
   const VMwareReleaseItem({
     required this.id,
     required this.family,
@@ -42,6 +50,12 @@ class VMwareReleaseItem {
     required this.md5,
     required this.officialDownloadUrl,
     this.notes = 'Official Broadcom free license release for personal & commercial use.',
+    this.displayGroup,
+    this.servicePk,
+    this.filePath,
+    this.eulaId,
+    this.releaseDesc,
+    this.isOnlineFetched = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -60,6 +74,12 @@ class VMwareReleaseItem {
         'md5': md5,
         'officialDownloadUrl': officialDownloadUrl,
         'notes': notes,
+        'displayGroup': displayGroup,
+        'servicePk': servicePk,
+        'filePath': filePath,
+        'eulaId': eulaId,
+        'releaseDesc': releaseDesc,
+        'isOnlineFetched': isOnlineFetched,
       };
 
   factory VMwareReleaseItem.fromJson(Map<String, dynamic> json) {
@@ -85,6 +105,12 @@ class VMwareReleaseItem {
       md5: json['md5'] as String,
       officialDownloadUrl: json['officialDownloadUrl'] as String,
       notes: json['notes'] as String? ?? '',
+      displayGroup: json['displayGroup'] as String?,
+      servicePk: json['servicePk'] as String?,
+      filePath: json['filePath'] as String?,
+      eulaId: json['eulaId'] as int?,
+      releaseDesc: json['releaseDesc'] as String?,
+      isOnlineFetched: json['isOnlineFetched'] as bool? ?? false,
     );
   }
 }

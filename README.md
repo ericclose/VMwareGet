@@ -24,7 +24,10 @@
 - **Session Persistence:** Successfully authenticated session cookies and OAuth tokens are securely stored using encrypted local storage (`flutter_secure_storage` with fallback persistence).
 - **Instant Demo Session:** Allows immediate exploration and testing of product catalogs and verification flows.
 
-### 2.2 Main Dashboard & Product Catalog
+### 2.2 Dynamic Online Catalog & Broadcom API Sync
+- **Live Online Sync:** Dynamically queries official Broadcom API endpoints:
+  - `POST /group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50`
+  - Retrieves real-time release versions, build numbers, file sizes, SHA2 (SHA-256), and MD5 checksums.
 - **Product Toggle:** Switch between **VMware Workstation Pro** (Windows `.exe`, Linux `.bundle`) and **VMware Fusion** (macOS Universal `.dmg`).
 - **Comprehensive Metadata Panel:** Displays:
   - **File Name**
@@ -33,8 +36,12 @@
   - **SHA2 Checksum (SHA-256)** with one-click copy
   - **MD5 Checksum** with one-click copy
   - Build numbers, installer sizes, and licensing notes.
+  - "Live Cloud" status badge for items fetched in real-time.
 
-### 2.3 Download Manager & Automated Hash Verification
+### 2.3 Download Manager & Dynamic Order Generation
+- **Dynamic Download Order Generation:** Integrates official Broadcom endpoint:
+  - `POST /group/ecx/productfiles/-/productFiles/createProductDownloadOrder`
+  - Automatically generates authorized signed CDN URLs with EULA acknowledgment (`eulaId: 17290717`) and CSRF validation (`x-csrf-token`).
 - **Live Transfer Metrics:** Real-time downloaded bytes, total size, percentage progress, speed (MB/s), and ETA.
 - **Pause & Resume:** Resume interrupted downloads using HTTP `Range` headers.
 - **Automated Checksum Verification:** Streamed chunked calculation of SHA-256 and MD5 upon download completion, immediately validating against official Broadcom hashes.

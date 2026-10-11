@@ -36,10 +36,10 @@ void main() {
   test('Search filter filters accurately by version and file name', () {
     final results = catalogService.searchReleases(
       family: VMwareProductFamily.workstationPro,
-      query: '17.6.2',
+      query: '26H1u1',
     );
 
     expect(results.isNotEmpty, isTrue);
-    expect(results.every((r) => r.version == '17.6.2'), isTrue);
+    expect(results.every((r) => r.version == '26H1u1'), isTrue);
   });
 }

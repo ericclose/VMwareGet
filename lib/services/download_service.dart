@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import 'checksum_service.dart';
@@ -45,10 +46,69 @@ class DownloadService {
     return fallbackDir.path;
   }
 
+  Future<String?> generateAuthorizedDownloadUrl({
+    required VMwareReleaseItem release,
+    required AuthSession session,
+  }) async {
+    if (release.filePath == null || release.displayGroup == null) {
+      return null;
+    }
+
+    try {
+      final orderResp = await _dio.post(
+        'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder',
+        data: {
+          'downloadType': 'HTTP',
+          'productName': release.family == VMwareProductFamily.workstationPro
+              ? 'VMware Workstation Pro'
+              : 'VMware Fusion',
+          'releaseDescription': release.releaseDesc ??
+              (release.family == VMwareProductFamily.workstationPro
+                  ? 'VMware Workstation Pro (For Windows)'
+                  : 'VMware Fusion (for Intel-based and Apple silicon Macs)'),
+          'skuCode': '',
+          'displayGroup': release.displayGroup,
+          'release': release.version,
+          'genLevel': release.servicePk ?? '',
+          'language': 'EN',
+          'os': '',
+          'eulaId': release.eulaId ?? 17290717,
+          'accessToken': false,
+          'siteId': '105246',
+          'orderedFiles': [
+            {
+              'filePath': release.filePath,
+              'fileSize': release.fileSizeBytes,
+            }
+          ]
+        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Origin': 'https://support.broadcom.com',
+            'Cookie': session.cookieJar ?? session.sessionToken,
+            'x-csrf-token': session.csrfToken ?? 'YaLAJUoR',
+          },
+        ),
+      );
+
+      if (orderResp.statusCode == 200 && orderResp.data != null) {
+        final data = orderResp.data is Map ? orderResp.data as Map : {};
+        if (data['success'] == true) {
+          final dlUrl = data['data']?['downloadUrl'] as String?;
+          return dlUrl;
+        }
+      }
+    } catch (e) {
+      print('Error generating download order: $e');
+    }
+    return null;
+  }
+
   Future<void> startOrResumeDownload({
     required DownloadItem item,
     required void Function(DownloadItem updatedItem) onUpdate,
-    String? sessionCookie,
+    AuthSession? session,
   }) async {
     final cancelToken = CancelToken();
     _cancelTokens[item.id] = cancelToken;
@@ -56,6 +116,18 @@ class DownloadService {
     item.status = DownloadStatus.downloading;
     item.errorMessage = null;
     onUpdate(item);
+
+    // 1. Resolve authorized download link
+    String downloadUrl = item.release.officialDownloadUrl;
+    if (session != null && item.release.filePath != null) {
+      final authorizedUrl = await generateAuthorizedDownloadUrl(
+        release: item.release,
+        session: session,
+      );
+      if (authorizedUrl != null && authorizedUrl.isNotEmpty) {
+        downloadUrl = authorizedUrl;
+      }
+    }
 
     final file = File(item.destinationPath);
     int existingBytes = 0;
@@ -71,16 +143,14 @@ class DownloadService {
       responseType: ResponseType.stream,
       headers: {
         if (existingBytes > 0) 'Range': 'bytes=$existingBytes-',
-        if (sessionCookie != null && sessionCookie.isNotEmpty)
-          'Cookie': sessionCookie,
         'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
       },
     );
 
     try {
       final response = await _dio.get<ResponseBody>(
-        item.release.officialDownloadUrl,
+        downloadUrl,
         options: options,
         cancelToken: cancelToken,
       );
@@ -107,7 +177,6 @@ class DownloadService {
         sink.add(chunk);
         item.downloadedBytes += chunk.length;
 
-        // Speed calculation every 500ms
         final now = DateTime.now();
         final lastTime = _lastSampleTimes[item.id] ?? now;
         final timeDiffMs = now.difference(lastTime).inMilliseconds;
@@ -124,7 +193,7 @@ class DownloadService {
       await sink.flush();
       await sink.close();
 
-      // Download complete, now perform checksum verification
+      // Download completed -> execute checksum verification
       item.speedBytesPerSec = 0;
       item.status = DownloadStatus.verifying;
       item.verificationStatus = VerificationStatus.verifying;

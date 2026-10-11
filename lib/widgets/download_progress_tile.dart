@@ -298,6 +298,7 @@ class DownloadProgressTile extends StatelessWidget {
                     label: const Text('Resume / Retry'),
                     onPressed: () => downloadProvider.resumeDownload(
                       id: item.id,
+                      session: authSession,
                       sessionCookie: authSession?.cookieJar ?? authSession?.sessionToken,
                     ),
                   ),

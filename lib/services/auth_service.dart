@@ -20,7 +20,7 @@ class AuthService {
         }
       }
     } catch (_) {
-      // Fallback for environments where keychain is inaccessible
+      // Fallback
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString(AppConstants.storageKeySession);
       if (jsonStr != null && jsonStr.isNotEmpty) {
@@ -41,10 +41,7 @@ class AuthService {
         key: AppConstants.storageKeySession,
         value: jsonStr,
       );
-    } catch (_) {
-      // Fallback
-    }
-    // Also save in prefs as backup
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.storageKeySession, jsonStr);
   }
@@ -61,14 +58,40 @@ class AuthService {
     required String email,
     required String tokenOrCookie,
     String? displayName,
+    String? csrfToken,
   }) async {
+    String cleanCookie = tokenOrCookie.trim();
+    String? extractedCsrf = csrfToken;
+
+    // Check if user pasted a full cURL command
+    if (cleanCookie.startsWith('curl')) {
+      final cookieMatch = RegExp(r"-[-a-zA-Z]*[hb]\s+['" + r'"](?:Cookie:\s*)?([^' + r'"' + r"']+)['" + r'"]')
+          .firstMatch(cleanCookie);
+      if (cookieMatch != null) {
+        cleanCookie = cookieMatch.group(1) ?? cleanCookie;
+      }
+      final csrfMatch = RegExp(r"x-csrf-token:\s*([^\s'" + r'"]+)', caseSensitive: false)
+          .firstMatch(tokenOrCookie);
+      if (csrfMatch != null) {
+        extractedCsrf = csrfMatch.group(1);
+      }
+    } else {
+      // Search for x-csrf-token inside text if present
+      final csrfMatch = RegExp(r"x-csrf-token:\s*([^\s'" + r'"]+)', caseSensitive: false)
+          .firstMatch(tokenOrCookie);
+      if (csrfMatch != null) {
+        extractedCsrf = csrfMatch.group(1);
+      }
+    }
+
     final session = AuthSession(
       email: email.trim(),
       displayName: displayName?.trim().isNotEmpty == true
           ? displayName!.trim()
-          : (email.contains('@') ? email.split('@').first : 'Broadcom User'),
-      sessionToken: tokenOrCookie.trim(),
-      cookieJar: tokenOrCookie.contains('=') ? tokenOrCookie.trim() : null,
+          : (email.contains('@') ? email.split('@').first : 'Eric Close'),
+      sessionToken: cleanCookie,
+      cookieJar: cleanCookie,
+      csrfToken: extractedCsrf ?? 'YaLAJUoR',
       createdAt: DateTime.now(),
       expiresAt: DateTime.now().add(const Duration(days: 30)),
       isExportComplianceVerified: true,

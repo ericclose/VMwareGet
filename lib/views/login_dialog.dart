@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/catalog_provider.dart';
 
 class LoginDialog extends StatefulWidget {
   const LoginDialog({super.key});
@@ -36,6 +37,8 @@ class _LoginDialogState extends State<LoginDialog> {
     if (mounted) {
       setState(() => _isSubmitting = false);
       if (success) {
+        final catalog = Provider.of<CatalogProvider>(context, listen: false);
+        catalog.refreshFromOnline(authProvider.currentSession);
         Navigator.of(context).pop(true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,6 +62,8 @@ class _LoginDialogState extends State<LoginDialog> {
     );
 
     if (mounted) {
+      final catalog = Provider.of<CatalogProvider>(context, listen: false);
+      catalog.refreshFromOnline(authProvider.currentSession);
       Navigator.of(context).pop(true);
     }
   }

@@ -46,24 +46,22 @@ jobs:
           flutter config --enable-macos-desktop
           flutter build macos --release
 
-      - name: Package into DMG and ZIP
+      - name: Package into DMG
         run: |
           mkdir -p dist
           APP_PATH="build/macos/Build/Products/Release/VMwareGet.app"
           if [ -d "$APP_PATH" ]; then
             hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "$APP_PATH" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
-            ditto -c -k --keepParent "$APP_PATH" "dist/${{ env.APP_NAME }}-macOS.zip"
           else
             echo "Packaging release directory..."
             hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "build/macos/Build/Products/Release" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
-            ditto -c -k --keepParent "build/macos/Build/Products/Release" "dist/${{ env.APP_NAME }}-macOS.zip"
           fi
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: macos-artifacts
-          path: dist/*
+          name: macos-dmg
+          path: dist/${{ env.APP_NAME }}-macOS.dmg
 
   # ============================================================================
   # 2. Windows Build (.exe)
@@ -104,7 +102,6 @@ jobs:
           if (-not (Test-Path $releasePath)) {
             $releasePath = "build\windows\runner\Release"
           }
-          Compress-Archive -Path "$releasePath\*" -DestinationPath "dist\${{ env.APP_NAME }}-Windows-x64.zip" -Force
           Get-ChildItem -Path "$releasePath" -Filter "*.exe" | ForEach-Object {
             Copy-Item $_.FullName -Destination "dist\${{ env.APP_NAME }}-Setup.exe" -Force
           }
@@ -113,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: windows-binaries
-          path: dist/*
+          path: dist/${{ env.APP_NAME }}-Setup.exe
 
   # ============================================================================
   # 3. Linux Debian-based Build (.deb)
@@ -129,6 +126,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev dpkg-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev || sudo apt-get install -y libwebkit2gtk-4.0-dev libsoup2.4-dev
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -217,6 +215,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev rpm alien
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev || sudo apt-get install -y libwebkit2gtk-4.0-dev libsoup2.4-dev
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -350,9 +349,9 @@ jobs:
       - name: Collect and flatten release assets
         run: |
           mkdir -p release-dist
-          echo "=== Collecting and flattening build artifacts ==="
-          find raw-artifacts -type f -exec cp -v {} release-dist/ \;
-          echo "=== Release assets ready for distribution ==="
+          echo "=== Collecting build artifacts (excluding any .zip) ==="
+          find raw-artifacts -type f ! -name "*.zip" -exec cp -v {} release-dist/ \;
+          echo "=== Final Distribution Files ==="
           ls -lh release-dist/
 
       - name: Publish Release to GitHub Releases

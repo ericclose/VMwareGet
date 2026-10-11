@@ -763,19 +763,19 @@ abstract class AppLocalizations {
   /// No description provided for @threadsSingle.
   ///
   /// In en, this message translates to:
-  /// **'1 (Single)'**
+  /// **'1'**
   String get threadsSingle;
 
   /// No description provided for @threadsDefault.
   ///
   /// In en, this message translates to:
-  /// **'16 (Default)'**
+  /// **'16'**
   String get threadsDefault;
 
   /// No description provided for @threadsMax.
   ///
   /// In en, this message translates to:
-  /// **'64 (Turbo)'**
+  /// **'64'**
   String get threadsMax;
 
   /// No description provided for @multiThreadingHint.
@@ -1075,7 +1075,7 @@ abstract class AppLocalizations {
   /// No description provided for @langEnglish.
   ///
   /// In en, this message translates to:
-  /// **'English (Default)'**
+  /// **'English'**
   String get langEnglish;
 
   /// No description provided for @langChinese.
@@ -1093,25 +1093,25 @@ abstract class AppLocalizations {
   /// Auto-generated entry for activeCountBadge
   ///
   /// In en, this message translates to:
-  /// **'\$count active'**
+  /// **'{count} active'**
   String activeCountBadge(int count);
 
   /// Auto-generated entry for copiedLogLines
   ///
   /// In en, this message translates to:
-  /// **'Copied \$count log entries to clipboard.'**
+  /// **'Copied {count} log entries to clipboard.'**
   String copiedLogLines(int count);
 
   /// Auto-generated entry for copiedToClipboard
   ///
   /// In en, this message translates to:
-  /// **'\$label copied to clipboard.'**
+  /// **'{label} copied to clipboard.'**
   String copiedToClipboard(String label);
 
   /// Auto-generated entry for copyLabel
   ///
   /// In en, this message translates to:
-  /// **'Copy \$label'**
+  /// **'Copy {label}'**
   String copyLabel(String label);
 }
 

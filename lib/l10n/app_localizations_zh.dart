@@ -339,13 +339,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get threadsLabel => '线程数';
 
   @override
-  String get threadsSingle => '1 (单连接)';
+  String get threadsSingle => '1';
 
   @override
-  String get threadsDefault => '16 (推荐)';
+  String get threadsDefault => '16';
 
   @override
-  String get threadsMax => '64 (极速)';
+  String get threadsMax => '64';
 
   @override
   String get multiThreadingHint => '💡 原生 Dart Range 并发切片传输，按偏移量直接定点落盘，配置即刻生效。';
@@ -496,7 +496,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quickDemoAccess => '免登录快速体验';
 
   @override
-  String get langEnglish => 'English (Default)';
+  String get langEnglish => 'English';
 
   @override
   String get langChinese => '简体中文';
@@ -506,21 +506,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String activeCountBadge(int count) {
-    return '\$count 个进行中';
+    return '$count 个进行中';
   }
 
   @override
   String copiedLogLines(int count) {
-    return '已复制 \$count 条日志至剪贴板。';
+    return '已复制 $count 条日志至剪贴板。';
   }
 
   @override
   String copiedToClipboard(String label) {
-    return '已将 \$label 复制至剪贴板。';
+    return '已将 $label 复制至剪贴板。';
   }
 
   @override
   String copyLabel(String label) {
-    return '复制 \$label';
+    return '复制 $label';
   }
 }

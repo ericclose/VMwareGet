@@ -363,19 +363,19 @@ class SettingsView extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          l10n.threadsSingle,
+                          '1',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
                         ),
                         Text(
-                          l10n.threadsDefault,
+                          '16',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
                         ),
                         Text(
-                          l10n.threadsMax,
+                          '64',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.outline,
                           ),
@@ -388,14 +388,8 @@ class SettingsView extends StatelessWidget {
                       runSpacing: 8,
                       children: [4, 8, 16, 32, 64].map((threads) {
                         final isSelected = downloadProvider.downloadThreads == threads;
-                        String suffix = '';
-                        if (threads == 16) {
-                          suffix = ' (${l10n.defaultLabel})';
-                        } else if (threads == 64) {
-                          suffix = ' (${l10n.maxLabel})';
-                        }
                         return ChoiceChip(
-                          label: Text('$threads ${l10n.threadsLabel}$suffix'),
+                          label: Text('$threads ${l10n.threadsLabel}'),
                           selected: isSelected,
                           onSelected: (_) {
                             downloadProvider.setDownloadThreads(threads);
@@ -509,40 +503,98 @@ class SettingsView extends StatelessWidget {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      l10n.displayLanguage,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.translate_rounded,
+                        size: 22,
+                        color: colorScheme.onPrimaryContainer,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment(
-                          value: 'en',
-                          icon: const Icon(Icons.language_rounded),
-                          label: Text(l10n.langEnglish),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.displayLanguage,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _getLanguageSubtitle(localeProvider.locale.languageCode),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.6),
                         ),
-                        ButtonSegment(
-                          value: 'zh',
-                          icon: const Icon(Icons.translate_rounded),
-                          label: Text(l10n.langChinese),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: localeProvider.locale.languageCode,
+                          icon: const Icon(Icons.arrow_drop_down_rounded),
+                          borderRadius: BorderRadius.circular(12),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'en',
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇺🇸', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 10),
+                                  Text(l10n.langEnglish, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'zh',
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇨🇳', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 10),
+                                  Text(l10n.langChinese, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'eo',
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🌐', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 10),
+                                  Text(l10n.langEsperanto, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (code) {
+                            if (code != null) {
+                              localeProvider.setLocale(Locale(code));
+                            }
+                          },
                         ),
-                        ButtonSegment(
-                          value: 'eo',
-                          icon: const Icon(Icons.public_rounded),
-                          label: Text(l10n.langEsperanto),
-                        ),
-                      ],
-                      selected: {localeProvider.locale.languageCode},
-                      onSelectionChanged: (set) {
-                        if (set.isNotEmpty) {
-                          localeProvider.setLocale(Locale(set.first));
-                        }
-                      },
+                      ),
                     ),
                   ],
                 ),
@@ -683,5 +735,17 @@ class SettingsView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getLanguageSubtitle(String code) {
+    switch (code) {
+      case 'zh':
+        return '简体中文 (Simplified Chinese)';
+      case 'eo':
+        return 'Esperanto (Internacia Lingvo)';
+      case 'en':
+      default:
+        return 'English (United States)';
+    }
   }
 }

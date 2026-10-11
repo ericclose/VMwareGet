@@ -352,13 +352,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadsLabel => 'Connections';
 
   @override
-  String get threadsSingle => '1 (Single)';
+  String get threadsSingle => '1';
 
   @override
-  String get threadsDefault => '16 (Default)';
+  String get threadsDefault => '16';
 
   @override
-  String get threadsMax => '64 (Turbo)';
+  String get threadsMax => '64';
 
   @override
   String get multiThreadingHint =>
@@ -517,7 +517,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickDemoAccess => 'Quick Demo Access';
 
   @override
-  String get langEnglish => 'English (Default)';
+  String get langEnglish => 'English';
 
   @override
   String get langChinese => '简体中文';
@@ -527,21 +527,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String activeCountBadge(int count) {
-    return '\$count active';
+    return '$count active';
   }
 
   @override
   String copiedLogLines(int count) {
-    return 'Copied \$count log entries to clipboard.';
+    return 'Copied $count log entries to clipboard.';
   }
 
   @override
   String copiedToClipboard(String label) {
-    return '\$label copied to clipboard.';
+    return '$label copied to clipboard.';
   }
 
   @override
   String copyLabel(String label) {
-    return 'Copy \$label';
+    return 'Copy $label';
   }
 }

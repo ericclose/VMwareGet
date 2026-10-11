@@ -349,13 +349,13 @@ class AppLocalizationsEo extends AppLocalizations {
   String get threadsLabel => 'Fadenoj';
 
   @override
-  String get threadsSingle => '1 (Unuobla)';
+  String get threadsSingle => '1';
 
   @override
-  String get threadsDefault => '16 (Defaŭlto)';
+  String get threadsDefault => '16';
 
   @override
-  String get threadsMax => '64 (Maksimumo)';
+  String get threadsMax => '64';
 
   @override
   String get multiThreadingHint =>
@@ -513,7 +513,7 @@ class AppLocalizationsEo extends AppLocalizations {
   String get quickDemoAccess => 'Ekzamena Reĝimo (Sen Ensaluto)';
 
   @override
-  String get langEnglish => 'English (Default)';
+  String get langEnglish => 'English';
 
   @override
   String get langChinese => '简体中文';
@@ -523,21 +523,21 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String activeCountBadge(int count) {
-    return '\$count aktivaj';
+    return '$count aktivaj';
   }
 
   @override
   String copiedLogLines(int count) {
-    return 'Kopiis \$count protokolajn liniojn al tondujo.';
+    return 'Kopiis $count protokolajn liniojn al tondujo.';
   }
 
   @override
   String copiedToClipboard(String label) {
-    return '\$label kopiita al tondujo.';
+    return '$label kopiita al tondujo.';
   }
 
   @override
   String copyLabel(String label) {
-    return 'Kopii \$label';
+    return 'Kopii $label';
   }
 }

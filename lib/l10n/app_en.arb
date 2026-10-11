@@ -110,9 +110,9 @@
   "multiThreadingSection": "Range Concurrency",
   "multiThreadingSubtitle": "Concurrent HTTP Range connections for accelerated throughput",
   "threadsLabel": "Connections",
-  "threadsSingle": "1 (Single)",
-  "threadsDefault": "16 (Default)",
-  "threadsMax": "64 (Turbo)",
+  "threadsSingle": "1",
+  "threadsDefault": "16",
+  "threadsMax": "64",
   "multiThreadingHint": "💡 Pure Dart native Range concurrency writes directly to disk offsets without external tools.",
   "defaultLabel": "Default",
   "maxLabel": "Max",
@@ -162,10 +162,10 @@
   "logInWithBroadcom": "Log In with Broadcom",
   "registerAccount": "Register Account",
   "quickDemoAccess": "Quick Demo Access",
-  "langEnglish": "English (Default)",
+  "langEnglish": "English",
   "langChinese": "简体中文",
   "langEsperanto": "Esperanto",
-  "activeCountBadge": "$count active",
+  "activeCountBadge": "{count} active",
   "@activeCountBadge": {
     "description": "Auto-generated entry for activeCountBadge",
     "placeholders": {
@@ -174,7 +174,7 @@
       }
     }
   },
-  "copiedLogLines": "Copied $count log entries to clipboard.",
+  "copiedLogLines": "Copied {count} log entries to clipboard.",
   "@copiedLogLines": {
     "description": "Auto-generated entry for copiedLogLines",
     "placeholders": {
@@ -183,7 +183,7 @@
       }
     }
   },
-  "copiedToClipboard": "$label copied to clipboard.",
+  "copiedToClipboard": "{label} copied to clipboard.",
   "@copiedToClipboard": {
     "description": "Auto-generated entry for copiedToClipboard",
     "placeholders": {
@@ -192,7 +192,7 @@
       }
     }
   },
-  "copyLabel": "Copy $label",
+  "copyLabel": "Copy {label}",
   "@copyLabel": {
     "description": "Auto-generated entry for copyLabel",
     "placeholders": {

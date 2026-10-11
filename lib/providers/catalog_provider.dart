@@ -57,6 +57,14 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearCatalog() {
+    _catalogService.clearCatalog();
+    _selectedRelease = null;
+    _searchQuery = '';
+    _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
+    notifyListeners();
+  }
+
   Future<void> refreshFromOnline(AuthSession? session) async {
     if (session == null) {
       _syncStatusMessage = 'Broadcom session required to fetch online catalog.';

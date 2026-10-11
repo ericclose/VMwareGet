@@ -57,6 +57,13 @@ class AuthService {
     } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.storageKeySession);
+
+    // Completely clear in-app webview cookies and storage so that the next login is fresh
+    if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+      try {
+        await WebviewWindow.clearAll();
+      } catch (_) {}
+    }
   }
 
   Future<Map<String, dynamic>?> loadSessionFromLocalTestFile() async {
@@ -191,6 +198,11 @@ class AuthService {
 
     onStatusUpdate?.call('Launching Broadcom in-app secure portal...');
 
+    // Clear previous or stale webview cookies to guarantee a fresh login flow
+    try {
+      await WebviewWindow.clearAll();
+    } catch (_) {}
+
     final webview = await WebviewWindow.create(
       configuration: const CreateConfiguration(
         title: '',
@@ -228,8 +240,8 @@ class AuthService {
       }
     });
 
-    // Check cookies and page authentication state every 1000ms
-    pollTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) async {
+    // Check cookies and page authentication state every 1200ms
+    pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) async {
       try {
         final cookies = await webview.getAllCookies();
         if (cookies.isEmpty) return;
@@ -238,31 +250,24 @@ class AuthService {
             cookies.where((c) => c.domain.contains('broadcom.com')).toList();
         if (broadcomCookies.isEmpty) return;
 
-        final hasJSessionId =
-            broadcomCookies.any((c) => c.name.toUpperCase() == 'JSESSIONID');
-        final hasSessionCookie = broadcomCookies.any((c) {
-          final n = c.name.toLowerCase();
-          return n == 'jsessionid' ||
-              n.contains('saml') ||
-              n.contains('session') ||
-              n.contains('liferay') ||
-              n.contains('okta');
-        });
-
-        // Query active page DOM and Liferay runtime inside WKWebView
+        // Query active page URL and Liferay runtime inside WKWebView
         String? extractedCsrf;
         String? extractedEmail;
         String? extractedName;
+        bool isLoginPage = true;
+        bool isSupportPortal = false;
         bool jsIsSignedIn = false;
 
         try {
           final jsRaw = await webview.evaluateJavaScript('''
             (() => {
               try {
-                const isLoginPage = window.location.href.includes('/login') || 
-                                    window.location.hostname.includes('auth.') ||
-                                    window.location.hostname.includes('login.');
-                const isSupport = window.location.hostname.includes('support.broadcom.com');
+                const url = window.location.href;
+                const isLogin = url.includes('/login') || 
+                                url.includes('auth.broadcom.com') ||
+                                url.includes('login.broadcom.com') ||
+                                url.includes('okta.com');
+                const isSupport = url.includes('support.broadcom.com') && !isLogin;
                 const csrf = window.Liferay?.authToken || window.themeDisplay?.getAuthToken?.() || '';
                 const email = window.themeDisplay?.getUserEmailAddress?.() || '';
                 let name = window.themeDisplay?.getUserName?.() || '';
@@ -270,20 +275,20 @@ class AuthService {
                   const el = document.querySelector('.user-full-name, .user-name, .profile-name, [data-user-name]');
                   if (el) name = el.innerText.trim();
                 }
-                const hasSignOut = document.body ? (document.body.innerText.includes('Sign Out') || document.body.innerText.includes('Log Out')) : false;
-                const isSignedIn = (window.themeDisplay?.isSignedIn?.() === true) ||
-                                   (isSupport && !isLoginPage && name.length > 0 && name !== 'Guest') ||
-                                   (isSupport && !isLoginPage && (csrf.length > 0 || hasSignOut));
+                const hasRealUser = name.length > 0 && name !== 'Guest';
+                const signedIn = (window.themeDisplay?.isSignedIn?.() === true) || (isSupport && hasRealUser);
 
                 return JSON.stringify({
-                  isSignedIn: !!isSignedIn,
+                  isLoginPage: !!isLogin,
+                  isSupportPortal: !!isSupport,
+                  isSignedIn: !!signedIn,
                   csrf: csrf,
                   email: email,
                   name: name,
-                  url: window.location.href
+                  url: url
                 });
               } catch(e) {
-                return JSON.stringify({ isSignedIn: false, error: e.toString() });
+                return JSON.stringify({ isLoginPage: true, isSupportPortal: false, isSignedIn: false, error: e.toString() });
               }
             })()
           ''');
@@ -295,6 +300,8 @@ class AuthService {
             }
             final data = jsonDecode(jsStr);
             if (data is Map) {
+              isLoginPage = data['isLoginPage'] == true;
+              isSupportPortal = data['isSupportPortal'] == true;
               jsIsSignedIn = data['isSignedIn'] == true;
               if (data['csrf']?.toString().isNotEmpty == true) {
                 extractedCsrf = data['csrf'].toString().trim();
@@ -310,17 +317,71 @@ class AuthService {
           }
         } catch (_) {}
 
-        final isAuthenticated = (hasJSessionId && hasSessionCookie) || jsIsSignedIn;
+        // Never attempt capture while user is on the login/SSO page
+        if (isLoginPage || !isSupportPortal) {
+          return;
+        }
 
-        if (isAuthenticated) {
-          final cookieHeader =
-              broadcomCookies.map((c) => '${c.name}=${c.value}').join('; ');
+        // Must have user sign-in confirmation
+        if (!jsIsSignedIn && (extractedName == null || extractedName.isEmpty)) {
+          return;
+        }
 
-          onStatusUpdate?.call('Broadcom authentication detected! Capturing session...');
+        final cookieHeader =
+            broadcomCookies.map((c) => '${c.name}=${c.value}').join('; ');
+        final csrf = (extractedCsrf != null && extractedCsrf.isNotEmpty)
+            ? extractedCsrf
+            : 'YaLAJUoR';
 
+        onStatusUpdate?.call('Broadcom login detected! Validating session...');
+
+        // Strict verification: live API call MUST succeed with HTTP 200 (not 302 redirect)
+        bool apiVerified = false;
+        try {
+          final dio = Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 4),
+              receiveTimeout: const Duration(seconds: 4),
+              followRedirects: false, // Disallow 302 redirect to login
+              validateStatus: (status) => status == 200,
+              headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Content-Type': 'application/json;charset=UTF-8',
+                'Origin': 'https://support.broadcom.com',
+                'Referer':
+                    'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro',
+                'Cookie': cookieHeader,
+                'x-csrf-token': csrf,
+              },
+            ),
+          );
+
+          final resp = await dio.post(
+            'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
+            data: {
+              'subFamily': 'VMware Workstation Pro',
+              'searchVal': '',
+              'language': 'EN',
+              'freeDownloads': true,
+            },
+          );
+
+          if (resp.statusCode == 200 &&
+              resp.data is Map &&
+              (resp.data as Map)['success'] == true) {
+            apiVerified = true;
+          }
+        } catch (_) {}
+
+        // ONLY capture and close when the live API confirms 200 OK (OR user is verified on portal with real non-guest name)
+        if (apiVerified || (isSupportPortal && extractedName != null && extractedName.isNotEmpty && extractedName != 'Guest')) {
           String userEmail = (extractedEmail != null && extractedEmail.contains('@'))
               ? extractedEmail
-              : 'account@broadcom.com';
+              : (extractedName != null && extractedName.isNotEmpty
+                  ? '${extractedName.replaceAll(" ", ".").toLowerCase()}@broadcom.user'
+                  : 'broadcom.user@broadcom.com');
 
           String displayName = (extractedName != null &&
                   extractedName.isNotEmpty &&
@@ -330,60 +391,15 @@ class AuthService {
                   ? userEmail.split('@').first
                   : 'Broadcom User');
 
-          final csrf = extractedCsrf ?? 'YaLAJUoR';
+          final session = await authenticateManual(
+            email: userEmail,
+            tokenOrCookie: cookieHeader,
+            displayName: displayName,
+            csrfToken: csrf,
+          );
 
-          // Try live API check with proper browser User-Agent
-          bool apiVerified = false;
-          try {
-            final dio = Dio(
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 4),
-                receiveTimeout: const Duration(seconds: 4),
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
-                  'Accept': 'application/json, text/plain, */*',
-                  'Content-Type': 'application/json;charset=UTF-8',
-                  'Origin': 'https://support.broadcom.com',
-                  'Referer':
-                      'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro',
-                  'Cookie': cookieHeader,
-                  'x-csrf-token': csrf,
-                },
-              ),
-            );
-
-            final resp = await dio.post(
-              'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
-              data: {
-                'subFamily': 'VMware Workstation Pro',
-                'searchVal': '',
-                'language': 'EN',
-                'freeDownloads': true,
-              },
-            );
-
-            if (resp.statusCode == 200 &&
-                resp.data is Map &&
-                (resp.data as Map)['success'] == true) {
-              apiVerified = true;
-            }
-          } catch (_) {}
-
-          // Conclude authentication if API verified OR confirmed signed-in inside WKWebView
-          if (apiVerified ||
-              (hasJSessionId && jsIsSignedIn) ||
-              (hasJSessionId && extractedName != null && extractedName.isNotEmpty)) {
-            final session = await authenticateManual(
-              email: userEmail,
-              tokenOrCookie: cookieHeader,
-              displayName: displayName,
-              csrfToken: csrf,
-            );
-
-            onStatusUpdate?.call('Login successful! Session captured.');
-            finishWithSession(session);
-          }
+          onStatusUpdate?.call('Login successful! Session captured.');
+          finishWithSession(session);
         }
       } catch (_) {}
     });

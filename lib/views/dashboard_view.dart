@@ -171,6 +171,8 @@ class _DashboardViewState extends State<DashboardView> {
                     if (value == 'settings') {
                       setState(() => _currentIndex = 2);
                     } else if (value == 'logout') {
+                      final catalogProvider = Provider.of<CatalogProvider>(context, listen: false);
+                      final messenger = ScaffoldMessenger.of(context);
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -194,14 +196,13 @@ class _DashboardViewState extends State<DashboardView> {
                         ),
                       );
                       if (confirmed == true) {
+                        catalogProvider.clearCatalog();
                         await authProvider.logout();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Signed out successfully. Session cleared.'),
-                            ),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Signed out successfully. Session cleared.'),
+                          ),
+                        );
                       }
                     }
                   },

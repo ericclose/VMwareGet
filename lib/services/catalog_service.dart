@@ -12,6 +12,8 @@ class CatalogService {
               BaseOptions(
                 connectTimeout: const Duration(seconds: 20),
                 receiveTimeout: const Duration(seconds: 30),
+                followRedirects: false,
+                validateStatus: (status) => status != null && status >= 200 && status < 400,
                 headers: {
                   'User-Agent':
                       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',

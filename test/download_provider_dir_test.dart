@@ -35,5 +35,29 @@ void main() {
       expect(provider.downloadDirectory, equals(defaultDir));
       expect(prefs.containsKey(AppConstants.storageKeyDownloadDir), isFalse);
     });
+
+    test('Initializes with default 16 threads and persists custom thread count up to 64', () async {
+      final provider = DownloadProvider();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(provider.downloadThreads, equals(16));
+
+      // Update to 32 threads
+      await provider.setDownloadThreads(32);
+      expect(provider.downloadThreads, equals(32));
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(AppConstants.storageKeyDownloadThreads), equals(32));
+
+      // Test clamping: exceeds max (64)
+      await provider.setDownloadThreads(128);
+      expect(provider.downloadThreads, equals(64));
+      expect(prefs.getInt(AppConstants.storageKeyDownloadThreads), equals(64));
+
+      // Test clamping: below min (1)
+      await provider.setDownloadThreads(0);
+      expect(provider.downloadThreads, equals(1));
+      expect(prefs.getInt(AppConstants.storageKeyDownloadThreads), equals(1));
+    });
   });
 }

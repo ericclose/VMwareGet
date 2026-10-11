@@ -283,6 +283,124 @@ class SettingsView extends StatelessWidget {
                           ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    const Divider(),
+                    const SizedBox(height: 16),
+
+                    // Multi-threading Range Engine
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.tertiaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.bolt_rounded,
+                            size: 22,
+                            color: colorScheme.onTertiaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Native Range Multi-threading (并发下载线程数)',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Concurrent HTTP Range connections for accelerated throughput',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${downloadProvider.downloadThreads} Threads',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 6,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                      ),
+                      child: Slider(
+                        value: downloadProvider.downloadThreads.toDouble(),
+                        min: AppConstants.minDownloadThreads.toDouble(),
+                        max: AppConstants.maxDownloadThreads.toDouble(),
+                        divisions: AppConstants.maxDownloadThreads - AppConstants.minDownloadThreads,
+                        label: '${downloadProvider.downloadThreads} Threads',
+                        onChanged: (val) {
+                          downloadProvider.setDownloadThreads(val.round());
+                        },
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '1 (Single)',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                          ),
+                        ),
+                        Text(
+                          '16 (Default)',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                          ),
+                        ),
+                        Text(
+                          '64 (Max Turbo)',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [4, 8, 16, 32, 64].map((threads) {
+                        final isSelected = downloadProvider.downloadThreads == threads;
+                        return ChoiceChip(
+                          label: Text('$threads 线程${threads == 16 ? " (默认)" : (threads == 64 ? " (最大)" : "")}'),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            downloadProvider.setDownloadThreads(threads);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '💡 原生 Dart Range 并发切片下载，无需重型外部进程依赖，自动分段定点写入，设置自动持久化生效。',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),

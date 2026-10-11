@@ -17,4 +17,10 @@ class AppConstants {
   static const String storageKeySession = 'vmwareget_auth_session';
   static const String storageKeyThemeMode = 'vmwareget_theme_mode';
   static const String storageKeyDownloadDir = 'vmwareget_download_dir';
+  static const String storageKeyDownloadThreads = 'vmwareget_download_threads';
+
+  // Multi-threading Download Engine Defaults
+  static const int defaultDownloadThreads = 16;
+  static const int minDownloadThreads = 1;
+  static const int maxDownloadThreads = 64;
 }

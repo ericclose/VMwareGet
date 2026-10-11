@@ -14,6 +14,7 @@ class DownloadProvider extends ChangeNotifier {
   String? _customDownloadDir;
   bool _isDownloadDirConfirmed = false;
   String _defaultSystemDownloadDir = '';
+  int _downloadThreads = AppConstants.defaultDownloadThreads;
 
   DownloadProvider() {
     _initDirectory();
@@ -34,6 +35,7 @@ class DownloadProvider extends ChangeNotifier {
   String? get downloadDirectory => _customDownloadDir;
   bool get isDownloadDirConfirmed => _isDownloadDirConfirmed;
   String get defaultSystemDownloadDir => _defaultSystemDownloadDir;
+  int get downloadThreads => _downloadThreads;
 
   Future<void> _initDirectory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -48,6 +50,19 @@ class DownloadProvider extends ChangeNotifier {
       _isDownloadDirConfirmed =
           prefs.getBool('vmwareget_download_dir_confirmed') ?? false;
     }
+    _downloadThreads = prefs.getInt(AppConstants.storageKeyDownloadThreads) ??
+        AppConstants.defaultDownloadThreads;
+    notifyListeners();
+  }
+
+  Future<void> setDownloadThreads(int threads) async {
+    final clamped = threads.clamp(
+      AppConstants.minDownloadThreads,
+      AppConstants.maxDownloadThreads,
+    );
+    _downloadThreads = clamped;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(AppConstants.storageKeyDownloadThreads, clamped);
     notifyListeners();
   }
 
@@ -120,6 +135,7 @@ class DownloadProvider extends ChangeNotifier {
     _downloadService.startOrResumeDownload(
       item: item,
       session: session,
+      threads: _downloadThreads,
       onUpdate: (updated) {
         _items[updated.id] = updated;
         notifyListeners();
@@ -145,6 +161,7 @@ class DownloadProvider extends ChangeNotifier {
       _downloadService.startOrResumeDownload(
         item: item,
         session: session,
+        threads: _downloadThreads,
         onUpdate: (updated) {
           _items[updated.id] = updated;
           notifyListeners();
@@ -194,6 +211,10 @@ class DownloadProvider extends ChangeNotifier {
           final file = File(item.destinationPath);
           if (await file.exists()) {
             await file.delete();
+          }
+          final meta = File('${item.destinationPath}.vmeta');
+          if (await meta.exists()) {
+            await meta.delete();
           }
         } catch (_) {}
       }

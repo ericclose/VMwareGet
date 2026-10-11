@@ -531,6 +531,11 @@ class SettingsView extends StatelessWidget {
                           icon: const Icon(Icons.translate_rounded),
                           label: Text(l10n.langChinese),
                         ),
+                        ButtonSegment(
+                          value: 'eo',
+                          icon: const Icon(Icons.public_rounded),
+                          label: Text(l10n.langEsperanto),
+                        ),
                       ],
                       selected: {localeProvider.locale.languageCode},
                       onSelectionChanged: (set) {

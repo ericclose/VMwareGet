@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
+import '../utils/json_utils.dart';
 import 'auth_service.dart';
 import 'diagnostic_service.dart';
 
@@ -15,8 +16,8 @@ class CatalogService {
       : _dio = dio ??
             Dio(
               BaseOptions(
-                connectTimeout: const Duration(seconds: 20),
-                receiveTimeout: const Duration(seconds: 30),
+                connectTimeout: const Duration(seconds: 45),
+                receiveTimeout: const Duration(seconds: 45),
                 followRedirects: false,
                 validateStatus: (status) =>
                     status != null && status >= 200 && status < 400,
@@ -190,14 +191,23 @@ class CatalogService {
           continue;
         }
 
-        final skuData = skuResp.data is Map ? skuResp.data as Map : {};
+        final skuData = parseJsonMap(skuResp.data);
+        if (skuData == null) {
+          final preview = skuResp.data.toString();
+          _lastSyncError = 'Broadcom returned non-JSON response body: ${preview.length > 150 ? '${preview.substring(0, 150)}...' : preview}';
+          DiagnosticService.instance.error(
+            'Catalog',
+            'Non-JSON response for $subFamily',
+            _lastSyncError!,
+          );
+          continue;
+        }
+
         if (skuData['success'] != true) {
           final errorMsg = skuData['message']?.toString() ??
               skuData['errors']?.toString() ??
               skuData['error']?.toString() ??
-              (skuResp.data is String
-                  ? 'Server returned non-JSON body: ${skuResp.data.toString().substring(0, 150)}'
-                  : 'Broadcom returned success=false (data: $skuData)');
+              'Broadcom returned success=false (data: $skuData)';
           _lastSyncError = errorMsg;
           DiagnosticService.instance.error(
             'Catalog',
@@ -269,9 +279,8 @@ class CatalogService {
               );
 
               if (filesResp.statusCode == 200 && filesResp.data != null) {
-                final filesData =
-                    filesResp.data is Map ? filesResp.data as Map : {};
-                if (filesData['success'] == true) {
+                final filesData = parseJsonMap(filesResp.data);
+                if (filesData != null && filesData['success'] == true) {
                   final packlist =
                       filesData['data']?['packlistDetails']?['content'] as List?;
                   if (packlist != null) {

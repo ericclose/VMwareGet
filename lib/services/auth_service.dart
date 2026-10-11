@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/auth_session.dart';
 import '../utils/constants.dart';
+import '../utils/json_utils.dart';
 import 'diagnostic_service.dart';
 
 class AuthService {
@@ -213,9 +214,8 @@ class AuthService {
           },
         ),
       );
-      if (resp.statusCode == 200 &&
-          resp.data is Map &&
-          resp.data['success'] == true) {
+      final data = parseJsonMap(resp.data);
+      if (resp.statusCode == 200 && data != null && data['success'] == true) {
         return true;
       }
     } catch (_) {}
@@ -502,9 +502,10 @@ class AuthService {
             },
           );
 
+          final map = parseJsonMap(resp.data);
           if (resp.statusCode == 200 &&
-              resp.data is Map &&
-              (resp.data as Map)['success'] == true) {
+              map != null &&
+              map['success'] == true) {
             apiVerified = true;
           }
         } catch (_) {}

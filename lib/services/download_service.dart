@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
+import '../utils/json_utils.dart';
 import 'checksum_service.dart';
 
 class DownloadService {
@@ -98,8 +99,8 @@ class DownloadService {
       );
 
       if (orderResp.statusCode == 200 && orderResp.data != null) {
-        final data = orderResp.data is Map ? orderResp.data as Map : {};
-        if (data['success'] == true) {
+        final data = parseJsonMap(orderResp.data);
+        if (data != null && data['success'] == true) {
           final dlUrl = data['data']?['downloadUrl'] as String?;
           return dlUrl;
         }

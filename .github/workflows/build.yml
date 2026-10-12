@@ -114,8 +114,9 @@ jobs:
             $tagVersion = "1.0.0"
           }
 
+          $iconPath = "$PWD\windows\runner\resources\app_icon.ico"
           Write-Host "Compiling Inno Setup installer with version $tagVersion..."
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$tagVersion" "/DMyAppSourceDir=$releasePath" "/DMyAppOutputDir=$distPath" windows\installer\vmwareget.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$tagVersion" "/DMyAppSourceDir=$releasePath" "/DMyAppOutputDir=$distPath" "/DMyAppIconFile=$iconPath" windows\installer\vmwareget.iss
 
           Write-Host "Verifying generated installer:"
           Get-ChildItem -Path dist\*.exe | Select-Object Name, Length

@@ -18,13 +18,16 @@
   #define MyAppOutputDir "..\..\dist"
 #endif
 
+#ifndef MyAppIconFile
+  #define MyAppIconFile "..\runner\resources\app_icon.ico"
+#endif
+
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 AppId={{C6D2B29A-3481-42FE-9B5A-B981C205E412}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppAppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -34,7 +37,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#MyAppOutputDir}
 OutputBaseFilename=VMwareGet-Setup
-SetupIconFile=..\runner\resources\app_icon.ico
+SetupIconFile={#MyAppIconFile}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

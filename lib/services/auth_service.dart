@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -76,6 +76,11 @@ class AuthService {
 
   static String? _windowsWebviewDataDir;
 
+  @visibleForTesting
+  static void resetWindowsWebviewDataDirForTesting() {
+    _windowsWebviewDataDir = null;
+  }
+
   /// Returns a user-writable directory in %LOCALAPPDATA% for the WebView2 cache.
   /// This prevents the "Microsoft Edge can't read and write to its data directory" error
   /// when the application is installed in "C:\Program Files\VMwareGet".
@@ -83,20 +88,23 @@ class AuthService {
     if (_windowsWebviewDataDir != null) {
       return _windowsWebviewDataDir!;
     }
+    final sep = Platform.pathSeparator;
     final localAppData = Platform.environment['LOCALAPPDATA'] ??
         Platform.environment['APPDATA'] ??
-        Platform.environment['USERPROFILE'];
+        (Platform.isWindows ? Platform.environment['USERPROFILE'] : null);
     if (localAppData != null && localAppData.isNotEmpty) {
-      final dir = Directory('$localAppData\\VMwareGet\\webview_data');
+      final dir = Directory('$localAppData${sep}VMwareGet${sep}webview_data');
       if (!dir.existsSync()) {
         try {
           dir.createSync(recursive: true);
         } catch (_) {}
       }
-      _windowsWebviewDataDir = dir.path;
-      return dir.path;
+      if (dir.existsSync()) {
+        _windowsWebviewDataDir = dir.path;
+        return dir.path;
+      }
     }
-    final tempDir = Directory('${Directory.systemTemp.path}\\VMwareGet_webview_data');
+    final tempDir = Directory('${Directory.systemTemp.path}${sep}VMwareGet_webview_data');
     if (!tempDir.existsSync()) {
       try {
         tempDir.createSync(recursive: true);

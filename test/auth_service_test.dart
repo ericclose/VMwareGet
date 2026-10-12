@@ -81,6 +81,7 @@ void main() {
     });
 
     test('getWindowsWebviewDataDir returns non-empty user-writable path', () {
+      AuthService.resetWindowsWebviewDataDirForTesting();
       final dataDir = AuthService.getWindowsWebviewDataDir();
       expect(dataDir.isNotEmpty, isTrue);
       expect(Directory(dataDir).existsSync(), isTrue);

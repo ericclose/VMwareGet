@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
+import '../services/android_cookie_service.dart';
 import '../services/auth_service.dart';
 import '../services/diagnostic_service.dart';
 import '../utils/constants.dart';
@@ -22,7 +22,6 @@ class MobileWebViewLoginScreen extends StatefulWidget {
 
 class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
   late final WebViewController _controller;
-  final WebviewCookieManager _cookieManager = WebviewCookieManager();
   Timer? _pollTimer;
   double _progress = 0.0;
   String _status = 'Initializing secure Broadcom login...';
@@ -151,10 +150,15 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
 
     // Fetch cookies for support.broadcom.com
     try {
-      final cookies = await _cookieManager.getCookies('https://support.broadcom.com');
-      final cleanCookieHeader = AuthService.compileCookiesForSupportPortal(cookies);
+      final rawCookies =
+          await AndroidCookieService.getCookies('https://support.broadcom.com');
+      if (rawCookies == null || rawCookies.isEmpty) {
+        return;
+      }
+      final cleanCookieHeader = AuthService.cleanCookieString(rawCookies);
 
-      if (cleanCookieHeader.isEmpty || !cleanCookieHeader.contains('JSESSIONID')) {
+      if (cleanCookieHeader.isEmpty ||
+          !cleanCookieHeader.contains('JSESSIONID')) {
         return;
       }
 

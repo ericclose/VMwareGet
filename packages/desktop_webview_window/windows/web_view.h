@@ -26,6 +26,7 @@ class WebView {
   WebView(std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel,
           int64_t web_view_id,
           std::wstring userDataFolder,
+          HWND parent_window,
           std::function<void(HRESULT)> on_web_view_created_callback
   );
 

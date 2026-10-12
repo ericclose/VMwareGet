@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/catalog_provider.dart';
+import '../widgets/diagnostic_dialog.dart';
 
 class LoginDialog extends StatefulWidget {
   const LoginDialog({super.key});
@@ -459,6 +460,12 @@ class _LoginDialogState extends State<LoginDialog> {
                   : () => authProvider.openBroadcomLoginPortal(),
             ),
             const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.bug_report_outlined, size: 16),
+              tooltip: l10n.viewDiagnosticLogs,
+              onPressed: () => DiagnosticDialog.show(context),
+            ),
+            const SizedBox(width: 4),
             TextButton(
               onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
               child: Text(l10n.cancel),

@@ -335,15 +335,28 @@ class AuthService {
   Future<AuthSession?> loginWithInAppWebView({
     void Function(String message)? onStatusUpdate,
   }) async {
+    final osName = Platform.operatingSystem;
+    DiagnosticService.instance.info('Auth', 'Initiating in-app WebView login on $osName');
+
     if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux)) {
+      DiagnosticService.instance.error('Auth', 'In-App WebView is not supported on $osName');
       throw UnsupportedError('In-App WebView login is only supported on Desktop platforms.');
     }
 
-    if (!await WebviewWindow.isWebviewAvailable()) {
+    final isAvailable = await WebviewWindow.isWebviewAvailable();
+    DiagnosticService.instance.info('Auth', 'System WebView runtime availability: $isAvailable');
+    if (!isAvailable) {
+      DiagnosticService.instance.error('Auth', 'Desktop WebView runtime is not available on this system ($osName)');
       throw StateError('Desktop WebView runtime is not available on this system.');
     }
 
+    final winDataDir = Platform.isWindows ? getWindowsWebviewDataDir() : null;
+    if (winDataDir != null) {
+      DiagnosticService.instance.info('Auth', 'Configured Windows WebView2 data directory: $winDataDir');
+    }
+
     onStatusUpdate?.call('Launching Broadcom in-app secure portal...');
+    DiagnosticService.instance.info('Auth', 'Creating native WebView window...');
 
     final webview = await WebviewWindow.create(
       configuration: CreateConfiguration(
@@ -352,13 +365,12 @@ class AuthService {
         windowHeight: 760,
         titleBarHeight: 42,
         titleBarTopPadding: 0,
-        userDataFolderWindows: Platform.isWindows
-            ? getWindowsWebviewDataDir()
-            : 'webview_window_WebView2',
+        userDataFolderWindows: winDataDir ?? 'webview_window_WebView2',
       ),
     );
 
-    webview.launch(AppConstants.broadcomLoginUrl);
+    DiagnosticService.instance.info('Auth', 'Native window created. Launching URL: ${AppConstants.broadcomLoginUrl}');
+    webview.launch(AppConstants.broadcomLoginUrl, triggerOnUrlRequestEvent: false);
 
     final completer = Completer<AuthSession?>();
     Timer? pollTimer;
@@ -372,6 +384,7 @@ class AuthService {
       if (isCompleted) return;
       isCompleted = true;
       cleanup();
+      DiagnosticService.instance.info('Auth', 'Closing in-app WebView window and completing session capture.');
       webview.close();
       if (!completer.isCompleted) {
         completer.complete(session);
@@ -379,6 +392,7 @@ class AuthService {
     }
 
     webview.onClose.then((_) {
+      DiagnosticService.instance.info('Auth', 'In-App WebView window was closed.');
       cleanup();
       if (!isCompleted && !completer.isCompleted) {
         completer.complete(null);
@@ -465,6 +479,10 @@ class AuthService {
                   data['name'].toString() != 'Guest') {
                 extractedName = data['name'].toString().trim();
               }
+              DiagnosticService.instance.info(
+                'Auth',
+                'WebView poll: ${cookies.length} cookies, url=${data['url']}, loginPage=$isLoginPage, supportPortal=$isSupportPortal, signedIn=$jsIsSignedIn',
+              );
             }
           }
         } catch (_) {}

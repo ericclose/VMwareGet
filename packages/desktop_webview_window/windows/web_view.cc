@@ -24,6 +24,11 @@ namespace webview_window {
 static LRESULT CALLBACK WndProc(HWND const window, UINT const message,
                                 WPARAM const wparam,
                                 LPARAM const lparam) noexcept {
+  if (message == WM_SIZE) {
+    if (auto that = reinterpret_cast<WebView*>(GetWindowLongPtr(window, GWLP_USERDATA))) {
+      that->UpdateBounds();
+    }
+  }
   return DefWindowProc(window, message, wparam, lparam);
 }
 
@@ -34,7 +39,7 @@ using namespace Microsoft::WRL;
 WebView::WebView(
     std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>>
         method_channel,
-    int64_t web_view_id, std::wstring userDataFolder,
+    int64_t web_view_id, std::wstring userDataFolder, HWND parent_window,
     std::function<void(HRESULT)> on_web_view_created)
     : method_channel_(std::move(method_channel)),
       web_view_id_(web_view_id),
@@ -43,12 +48,13 @@ WebView::WebView(
   RegisterWindowClass(kWebViewClassName, WndProc);
   view_window_ = wil::unique_hwnd(::CreateWindowEx(
       0, kWebViewClassName, L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
-      HWND_MESSAGE, nullptr, ::GetModuleHandle(nullptr), nullptr));
+      parent_window, nullptr, ::GetModuleHandle(nullptr), nullptr));
   assert(view_window_ != nullptr);
   if (!view_window_) {
     on_web_view_created_callback_(S_FALSE);
     return;
   }
+  SetWindowLongPtr(view_window_.get(), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
   // Ensure user data folder is always in a user-writable directory (e.g. %LOCALAPPDATA%),
   // never inside Program Files where non-elevated users lack write permissions.
@@ -138,6 +144,7 @@ void WebView::OnWebviewControllerCreated() {
     }
   }
 
+  webview_controller_->put_IsVisible(TRUE);
   UpdateBounds();
 
   // Always use single window to load web page.
@@ -292,11 +299,14 @@ void WebView::OnWebviewControllerCreated() {
 }
 
 void WebView::UpdateBounds() {
+  if (!view_window_) return;
   // Resize WebView to fit the bounds of the parent window
   RECT bounds;
   GetClientRect(view_window_.get(), &bounds);
-  if (webview_controller_) 
+  if (webview_controller_) {
     webview_controller_->put_Bounds(bounds);
+    webview_controller_->put_IsVisible(TRUE);
+  }
 }
 
 void WebView::Navigate(const std::wstring &url) {
@@ -550,6 +560,9 @@ void WebView::setTriggerOnUrlRequestedEvent(const bool value) {
 }
 
 WebView::~WebView() {
+  if (view_window_) {
+    SetWindowLongPtr(view_window_.get(), GWLP_USERDATA, 0);
+  }
   if (webview_) {
     webview_->Stop();
   }

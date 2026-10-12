@@ -200,33 +200,10 @@ void WebView::OnWebviewControllerCreated() {
                      flutter::EncodableValue(web_view_id_)},
                 }));
 
-            if (triggerOnUrlRequestedEvent) {
-              wil::unique_cotaskmem_string uri;
-              HRESULT hr = args->get_Uri(&uri);
-              if (FAILED(hr) || !uri) {
-                args->put_Cancel(true);
-                return S_OK;
-              }
-
-              // Capture URI string before async callback
+            wil::unique_cotaskmem_string uri;
+            HRESULT hr = args->get_Uri(&uri);
+            if (SUCCEEDED(hr) && uri) {
               std::wstring uri_string(uri.get());
-
-              auto result_handler =
-                  std::make_unique<flutter::MethodResultFunctions<>>(
-                      [uri_string, sender,
-                       this](const flutter::EncodableValue *success_value) {
-                        bool letPass = false;
-                        if (success_value && 
-                            std::holds_alternative<bool>(*success_value)) {
-                          letPass = std::get<bool>(*success_value);
-                        }
-                        if (letPass) {
-                          this->setTriggerOnUrlRequestedEvent(false);
-                          sender->Navigate(uri_string.c_str());
-                        }
-                      },
-                      nullptr, nullptr);
-
               method_channel_->InvokeMethod(
                   "onUrlRequested",
                   std::make_unique<flutter::EncodableValue>(
@@ -236,16 +213,12 @@ void WebView::OnWebviewControllerCreated() {
                           {flutter::EncodableValue("url"),
                            flutter::EncodableValue(
                                wide_to_utf8(uri_string))},
-                      }),
-                  std::move(result_handler));
-
-              // navigation is canceled here and retriggered later from the
-              // callback passed to the method channel
-              args->put_Cancel(true);
-            } else {
-              args->put_Cancel(false);
-              triggerOnUrlRequestedEvent = true;
+                      }));
             }
+
+            // Do NOT cancel navigation so that HTTP POST request bodies (such as SAML
+            // authentication requests and SSO forms) are preserved rather than dropped.
+            args->put_Cancel(false);
             return S_OK;
           })
           .Get(),

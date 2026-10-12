@@ -4,12 +4,15 @@ import 'dart:io';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import '../models/auth_session.dart';
 import '../utils/constants.dart';
 import '../utils/json_utils.dart';
+import '../views/mobile_webview_login.dart';
 import 'diagnostic_service.dart';
 
 class AuthService {
@@ -124,16 +127,22 @@ class AuthService {
     } catch (_) {}
 
     // Completely clear in-app webview cookies and storage so that the next login is fresh
-    if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
-      try {
-        if (Platform.isWindows) {
-          await WebviewWindow.clearAll(
-            userDataFolderWindows: getWindowsWebviewDataDir(),
-          );
-        } else {
-          await WebviewWindow.clearAll();
-        }
-      } catch (_) {}
+    if (!kIsWeb) {
+      if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        try {
+          if (Platform.isWindows) {
+            await WebviewWindow.clearAll(
+              userDataFolderWindows: getWindowsWebviewDataDir(),
+            );
+          } else {
+            await WebviewWindow.clearAll();
+          }
+        } catch (_) {}
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        try {
+          await WebviewCookieManager().clearCookies();
+        } catch (_) {}
+      }
     }
   }
 
@@ -332,16 +341,32 @@ class AuthService {
     return await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  /// Launch native in-app WKWebView window to log into Broadcom and automatically capture session
+  /// Launch native in-app WebView window/modal to log into Broadcom and automatically capture session
   Future<AuthSession?> loginWithInAppWebView({
+    BuildContext? context,
     void Function(String message)? onStatusUpdate,
   }) async {
     final osName = Platform.operatingSystem;
     DiagnosticService.instance.info('Auth', 'Initiating in-app WebView login on $osName');
 
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      if (context == null) {
+        DiagnosticService.instance.error('Auth', 'BuildContext is required for mobile in-app WebView login');
+        throw ArgumentError('BuildContext is required for mobile in-app WebView login');
+      }
+      return await Navigator.of(context).push<AuthSession>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => MobileWebViewLoginScreen(
+            onStatusUpdate: onStatusUpdate,
+          ),
+        ),
+      );
+    }
+
     if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux)) {
       DiagnosticService.instance.error('Auth', 'In-App WebView is not supported on $osName');
-      throw UnsupportedError('In-App WebView login is only supported on Desktop platforms.');
+      throw UnsupportedError('In-App WebView login is only supported on Desktop and Mobile platforms.');
     }
 
     final isAvailable = await WebviewWindow.isWebviewAvailable();

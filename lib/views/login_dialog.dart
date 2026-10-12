@@ -48,6 +48,7 @@ class _LoginDialogState extends State<LoginDialog> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     final success = await authProvider.loginWithInAppWebView(
+      context: context,
       onStatusUpdate: (msg) {
         if (mounted) setState(() => _inAppStatus = msg);
       },

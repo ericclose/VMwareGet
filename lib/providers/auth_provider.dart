@@ -94,6 +94,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> loginWithInAppWebView({
+    BuildContext? context,
     void Function(String message)? onStatusUpdate,
   }) async {
     _isLoading = true;
@@ -102,6 +103,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final session = await _authService.loginWithInAppWebView(
+        context: context,
         onStatusUpdate: onStatusUpdate,
       );
       if (session != null) {

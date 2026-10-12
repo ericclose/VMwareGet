@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vmwareget/models/auth_session.dart';
 import 'package:vmwareget/services/auth_service.dart';
 import 'package:vmwareget/utils/constants.dart';
+import 'package:vmwareget/views/mobile_webview_login.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -122,6 +123,11 @@ void main() {
       final dataDir = AuthService.getWindowsWebviewDataDir();
       expect(dataDir.isNotEmpty, isTrue);
       expect(Directory(dataDir).existsSync(), isTrue);
+    });
+
+    test('MobileWebViewLoginScreen initializes properly', () {
+      const screen = MobileWebViewLoginScreen();
+      expect(screen, isA<MobileWebViewLoginScreen>());
     });
   });
 }

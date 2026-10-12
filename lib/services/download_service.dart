@@ -57,6 +57,24 @@ class DownloadService {
           }
           return winDownloads.path;
         }
+      } else if (Platform.isAndroid) {
+        const publicDownload = '/storage/emulated/0/Download';
+        final pubDir = Directory(publicDownload);
+        if (await pubDir.exists()) {
+          final vmDir = Directory(p.join(pubDir.path, 'VMwareGet'));
+          if (!await vmDir.exists()) {
+            await vmDir.create(recursive: true);
+          }
+          return vmDir.path;
+        }
+        final extDir = await getExternalStorageDirectory();
+        if (extDir != null) {
+          final vmDir = Directory(p.join(extDir.path, 'VMwareGet'));
+          if (!await vmDir.exists()) {
+            await vmDir.create(recursive: true);
+          }
+          return vmDir.path;
+        }
       }
 
       final dir = await getDownloadsDirectory();

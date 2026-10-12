@@ -305,11 +305,57 @@ jobs:
           path: dist/${{ env.APP_NAME }}-Linux-x86_64.rpm
 
   # ============================================================================
-  # 5. Release Publisher
+  # 5. Android Build (.apk)
+  # ============================================================================
+  build-android:
+    name: Build Android (.apk)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Prepare APK Artifact
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ env.APP_NAME }}-Android.apk"
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: dist/${{ env.APP_NAME }}-Android.apk
+
+  # ============================================================================
+  # 6. Release Publisher
   # ============================================================================
   publish-release:
     name: Publish GitHub Release
-    needs: [build-macos, build-windows, build-linux-deb, build-linux-rpm]
+    needs: [build-macos, build-windows, build-linux-deb, build-linux-rpm, build-android]
     if: always() && !cancelled() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -14,11 +15,13 @@ import 'utils/constants.dart';
 import 'views/auth_gate.dart';
 
 void main(List<String> args) {
-  if (runWebViewTitleBarWidget(
-    args,
-    builder: _buildCustomWebviewTitleBar,
-  )) {
-    return;
+  if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+    if (runWebViewTitleBarWidget(
+      args,
+      builder: _buildCustomWebviewTitleBar,
+    )) {
+      return;
+    }
   }
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const VMwareGetApp());

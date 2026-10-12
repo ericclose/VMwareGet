@@ -74,6 +74,38 @@ class AuthService {
     } catch (_) {}
   }
 
+  static String? _windowsWebviewDataDir;
+
+  /// Returns a user-writable directory in %LOCALAPPDATA% for the WebView2 cache.
+  /// This prevents the "Microsoft Edge can't read and write to its data directory" error
+  /// when the application is installed in "C:\Program Files\VMwareGet".
+  static String getWindowsWebviewDataDir() {
+    if (_windowsWebviewDataDir != null) {
+      return _windowsWebviewDataDir!;
+    }
+    final localAppData = Platform.environment['LOCALAPPDATA'] ??
+        Platform.environment['APPDATA'] ??
+        Platform.environment['USERPROFILE'];
+    if (localAppData != null && localAppData.isNotEmpty) {
+      final dir = Directory('$localAppData\\VMwareGet\\webview_data');
+      if (!dir.existsSync()) {
+        try {
+          dir.createSync(recursive: true);
+        } catch (_) {}
+      }
+      _windowsWebviewDataDir = dir.path;
+      return dir.path;
+    }
+    final tempDir = Directory('${Directory.systemTemp.path}\\VMwareGet_webview_data');
+    if (!tempDir.existsSync()) {
+      try {
+        tempDir.createSync(recursive: true);
+      } catch (_) {}
+    }
+    _windowsWebviewDataDir = tempDir.path;
+    return tempDir.path;
+  }
+
   Future<void> clearSession() async {
     try {
       await _secureStorage.delete(key: AppConstants.storageKeySession);
@@ -86,7 +118,13 @@ class AuthService {
     // Completely clear in-app webview cookies and storage so that the next login is fresh
     if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
       try {
-        await WebviewWindow.clearAll();
+        if (Platform.isWindows) {
+          await WebviewWindow.clearAll(
+            userDataFolderWindows: getWindowsWebviewDataDir(),
+          );
+        } else {
+          await WebviewWindow.clearAll();
+        }
       } catch (_) {}
     }
   }
@@ -300,12 +338,15 @@ class AuthService {
     onStatusUpdate?.call('Launching Broadcom in-app secure portal...');
 
     final webview = await WebviewWindow.create(
-      configuration: const CreateConfiguration(
+      configuration: CreateConfiguration(
         title: '',
         windowWidth: 1040,
         windowHeight: 760,
         titleBarHeight: 42,
         titleBarTopPadding: 0,
+        userDataFolderWindows: Platform.isWindows
+            ? getWindowsWebviewDataDir()
+            : 'webview_window_WebView2',
       ),
     );
 

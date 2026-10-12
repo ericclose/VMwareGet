@@ -50,6 +50,33 @@ WebView::WebView(
     return;
   }
 
+  // Ensure user data folder is always in a user-writable directory (e.g. %LOCALAPPDATA%),
+  // never inside Program Files where non-elevated users lack write permissions.
+  bool is_relative = user_data_folder_.empty() ||
+                     (user_data_folder_.find(L':') == std::wstring::npos &&
+                      (user_data_folder_.size() < 2 ||
+                       user_data_folder_[0] != L'\\' || user_data_folder_[1] != L'\\'));
+  if (is_relative) {
+    wchar_t local_app_data[MAX_PATH];
+    DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", local_app_data, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+      std::wstring base(local_app_data);
+      if (user_data_folder_.empty()) {
+        user_data_folder_ = base + L"\\VMwareGet\\webview_data";
+      } else {
+        user_data_folder_ = base + L"\\VMwareGet\\" + user_data_folder_;
+      }
+    }
+  }
+
+  // Ensure directories in user_data_folder_ exist
+  for (size_t i = 3; i <= user_data_folder_.size(); ++i) {
+    if (i == user_data_folder_.size() || user_data_folder_[i] == L'\\' || user_data_folder_[i] == L'/') {
+      std::wstring sub = user_data_folder_.substr(0, i);
+      ::CreateDirectoryW(sub.c_str(), nullptr);
+    }
+  }
+
   CreateCoreWebView2EnvironmentWithOptions(
       nullptr, user_data_folder_.c_str(), nullptr,
       Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(

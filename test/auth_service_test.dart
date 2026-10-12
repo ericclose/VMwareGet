@@ -4,6 +4,7 @@ import 'package:vmwareget/models/auth_session.dart';
 import 'package:vmwareget/services/auth_service.dart';
 import 'package:vmwareget/utils/constants.dart';
 import 'dart:convert';
+import 'dart:io';
 
 class MockCookie {
   final String name;
@@ -77,6 +78,12 @@ void main() {
       expect(loaded?.email, equals('test@broadcom.user'));
       expect(loaded?.displayName, equals('Test User'));
       expect(loaded?.isValid, isTrue);
+    });
+
+    test('getWindowsWebviewDataDir returns non-empty user-writable path', () {
+      final dataDir = AuthService.getWindowsWebviewDataDir();
+      expect(dataDir.isNotEmpty, isTrue);
+      expect(Directory(dataDir).existsSync(), isTrue);
     });
   });
 }

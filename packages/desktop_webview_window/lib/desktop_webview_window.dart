@@ -178,8 +178,15 @@ class WebviewWindow {
       if (p.isAbsolute(userDataFolderWindows)) {
         webview2Dir = Directory(userDataFolderWindows);
       } else {
-        webview2Dir = Directory(p.join(
-            p.dirname(Platform.resolvedExecutable), userDataFolderWindows));
+        final localAppData = Platform.environment['LOCALAPPDATA'] ??
+            Platform.environment['APPDATA'];
+        if (localAppData != null && localAppData.isNotEmpty) {
+          webview2Dir = Directory(
+              p.join(localAppData, 'VMwareGet', userDataFolderWindows));
+        } else {
+          webview2Dir = Directory(p.join(
+              p.dirname(Platform.resolvedExecutable), userDataFolderWindows));
+        }
       }
 
       if (await (webview2Dir.exists())) {

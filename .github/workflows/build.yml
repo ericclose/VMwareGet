@@ -94,17 +94,31 @@ jobs:
           flutter config --enable-windows-desktop
           flutter build windows --release
 
-      - name: Package Windows Executable
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          echo "${env:ProgramFiles(x86)}\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build Windows Setup Installer (.exe)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          $releasePath = "build\windows\x64\runner\Release"
+          $releasePath = "$PWD\build\windows\x64\runner\Release"
           if (-not (Test-Path $releasePath)) {
-            $releasePath = "build\windows\runner\Release"
+            $releasePath = "$PWD\build\windows\runner\Release"
           }
-          Get-ChildItem -Path "$releasePath" -Filter "*.exe" | ForEach-Object {
-            Copy-Item $_.FullName -Destination "dist\${{ env.APP_NAME }}-Setup.exe" -Force
+          $distPath = "$PWD\dist"
+          $tagVersion = "${{ github.ref_name }}".TrimStart('v')
+          if (-not ($tagVersion -match '^\d+\.\d+')) {
+            $tagVersion = "1.0.0"
           }
+
+          Write-Host "Compiling Inno Setup installer with version $tagVersion..."
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$tagVersion" "/DMyAppSourceDir=$releasePath" "/DMyAppOutputDir=$distPath" windows\installer\vmwareget.iss
+
+          Write-Host "Verifying generated installer:"
+          Get-ChildItem -Path dist\*.exe | Select-Object Name, Length
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v7

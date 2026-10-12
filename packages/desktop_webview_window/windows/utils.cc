@@ -3,6 +3,7 @@
 //
 
 #include "utils.h"
+#include "strconv.h"
 
 #include <windows.h>
 
@@ -97,13 +98,8 @@ void UnregisterWindowClass(LPCWSTR class_name) {
 }
 
 std::string ConvertLPCWSTRToString(LPCWSTR lpcwszStr) {
-  int strLength = WideCharToMultiByte(CP_UTF8, 0, lpcwszStr, -1, nullptr, 0,
-                                      nullptr, nullptr);
-  std::string str(strLength, 0);
-
-  WideCharToMultiByte(CP_UTF8, 0, lpcwszStr, -1, &str[0], strLength, nullptr,
-                      nullptr);
-  return str;
+  if (!lpcwszStr) return "";
+  return wide_to_utf8(std::wstring(lpcwszStr));
 }
 
 }  // namespace webview_window

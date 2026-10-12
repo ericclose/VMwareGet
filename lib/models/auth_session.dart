@@ -33,12 +33,15 @@ class AuthSession {
       };
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
+    final rawToken = json['sessionToken'] as String? ?? '';
+    final rawCookieJar = json['cookieJar'] as String?;
+    final rawCsrf = json['csrfToken'] as String?;
     return AuthSession(
       email: json['email'] as String,
       displayName: json['displayName'] as String? ?? 'Broadcom User',
-      sessionToken: json['sessionToken'] as String,
-      cookieJar: json['cookieJar'] as String?,
-      csrfToken: json['csrfToken'] as String?,
+      sessionToken: rawToken.replaceAll('\u0000', ''),
+      cookieJar: rawCookieJar?.replaceAll('\u0000', ''),
+      csrfToken: rawCsrf?.replaceAll('\u0000', ''),
       createdAt: DateTime.parse(json['createdAt'] as String),
       expiresAt: DateTime.parse(json['expiresAt'] as String),
       isExportComplianceVerified:

@@ -34,6 +34,43 @@ void main() {
       expect(matches.length, equals(1));
     });
 
+    test('cleanCookieString sanitizes null bytes from keys and values', () {
+      const raw = '__Secure-rbu\u0000=VAL1\u0000; JSESSIONID\u0000=VAL2\u0000';
+      final cleaned = AuthService.cleanCookieString(raw);
+      expect(cleaned.contains('\u0000'), isFalse);
+      expect(cleaned, equals('__Secure-rbu=VAL1; JSESSIONID=VAL2'));
+    });
+
+    test('compileCookiesForSupportPortal strips null bytes from Windows WebView cookies', () {
+      final cookies = [
+        MockCookie(name: '__Secure-rbu\u0000', value: 'VAL1\u0000', domain: 'support.broadcom.com'),
+        MockCookie(name: 'JSESSIONID\u0000', value: 'ABC123\u0000', domain: 'support.broadcom.com'),
+      ];
+      final header = AuthService.compileCookiesForSupportPortal(cookies);
+      expect(header.contains('\u0000'), isFalse);
+      expect(header.contains('__Secure-rbu=VAL1'), isTrue);
+      expect(header.contains('JSESSIONID=ABC123'), isTrue);
+    });
+
+    test('AuthSession.fromJson strips null bytes from persisted session', () {
+      final json = {
+        'email': 'user@example.com',
+        'displayName': 'User',
+        'sessionToken': 'TOKEN\u0000_123',
+        'cookieJar': '__Secure-rbu\u0000=ABC\u0000; JSESSIONID\u0000=XYZ',
+        'csrfToken': 'CSRF\u0000_KEY',
+        'createdAt': DateTime.now().toIso8601String(),
+        'expiresAt': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+      };
+      final session = AuthSession.fromJson(json);
+      expect(session.sessionToken.contains('\u0000'), isFalse);
+      expect(session.cookieJar?.contains('\u0000'), isFalse);
+      expect(session.csrfToken?.contains('\u0000'), isFalse);
+      expect(session.sessionToken, equals('TOKEN_123'));
+      expect(session.cookieJar, equals('__Secure-rbu=ABC; JSESSIONID=XYZ'));
+      expect(session.csrfToken, equals('CSRF_KEY'));
+    });
+
     test('compileCookiesForSupportPortal prioritizes support.broadcom.com JSESSIONID and preserves broadcom tokens', () {
       final cookies = [
         MockCookie(name: 'JSESSIONID', value: 'LOGIN_COOKIE', domain: 'login.broadcom.com'),

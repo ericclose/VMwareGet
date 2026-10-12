@@ -165,8 +165,8 @@ class AuthService {
 
     final Map<String, String> map = {};
     for (final c in broadcomCookies) {
-      final name = (c.name as String?)?.trim() ?? '';
-      final val = (c.value as String?)?.trim() ?? '';
+      final name = (c.name as String?)?.replaceAll('\u0000', '').trim() ?? '';
+      final val = (c.value as String?)?.replaceAll('\u0000', '').trim() ?? '';
       if (name.isNotEmpty && val.isNotEmpty && !map.containsKey(name)) {
         map[name] = val;
       }
@@ -183,15 +183,16 @@ class AuthService {
 
   /// Deduplicates manual cookie string by cookie name
   static String cleanCookieString(String cookieStr) {
-    final parts = cookieStr.split(';');
+    final sanitized = cookieStr.replaceAll('\u0000', '');
+    final parts = sanitized.split(';');
     final Map<String, String> map = {};
     for (final part in parts) {
       final trimmed = part.trim();
       if (trimmed.isEmpty) continue;
       final eqIdx = trimmed.indexOf('=');
       if (eqIdx > 0) {
-        final key = trimmed.substring(0, eqIdx).trim();
-        final val = trimmed.substring(eqIdx + 1).trim();
+        final key = trimmed.substring(0, eqIdx).trim().replaceAll('\u0000', '');
+        final val = trimmed.substring(eqIdx + 1).trim().replaceAll('\u0000', '');
         if (key.isNotEmpty && val.isNotEmpty) {
           map[key] = val;
         }

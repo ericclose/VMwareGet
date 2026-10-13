@@ -10,6 +10,7 @@ import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import '../utils/constants.dart';
 import '../utils/json_utils.dart';
+import 'auth_service.dart';
 import 'checksum_service.dart';
 import 'diagnostic_service.dart';
 
@@ -122,6 +123,12 @@ class DownloadService {
     }
 
     try {
+      final cookieHeader = session.cookieJar ?? session.sessionToken;
+      String? csrf = session.csrfToken;
+      if (csrf == null || csrf.isEmpty) {
+        csrf = await AuthService().fetchDynamicCsrfToken(cookieHeader);
+      }
+
       final orderResp = await _dio.post(
         'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder',
         data: {
@@ -157,8 +164,8 @@ class DownloadService {
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language':
                 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
-            'Cookie': session.cookieJar ?? session.sessionToken,
-            'x-csrf-token': session.csrfToken ?? 'YaLAJUoR',
+            'Cookie': cookieHeader,
+            'x-csrf-token': csrf ?? '',
           },
         ),
       );

@@ -20,7 +20,7 @@ LOGIN_START_URL = 'https://access.broadcom.com/'
 SUPPORT_PORTAL_URL = 'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true'
 
 
-def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email=''):
+def verify_session_against_broadcom(cookies_dict, csrf_token='', email=''):
     print("\n" + "="*70)
     print(" [*] Verifying captured browser cookies against Broadcom live API...")
     print("="*70)
@@ -183,7 +183,7 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
     return False
 
 
-def save_session(cookies_dict, csrf_token='YaLAJUoR', email=''):
+def save_session(cookies_dict, csrf_token='', email=''):
     try:
         data = {
             'email': email,

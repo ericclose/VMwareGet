@@ -107,7 +107,7 @@ class CatalogService {
   Future<bool> syncOnlineCatalog(AuthSession session) async {
     final cookieHeader = AuthService.cleanCookieString(
         session.cookieJar ?? session.sessionToken);
-    final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
+    final csrfHeader = session.csrfToken ?? '';
     final totalSw = Stopwatch()..start();
 
     DiagnosticService.instance.info(
@@ -171,6 +171,12 @@ class CatalogService {
     final familySw = Stopwatch()..start();
 
     String currentCsrf = csrfHeader;
+    if (currentCsrf.isEmpty) {
+      final dynToken = await AuthService().fetchDynamicCsrfToken(cookieHeader);
+      if (dynToken != null && dynToken.isNotEmpty) {
+        currentCsrf = dynToken;
+      }
+    }
 
     try {
       DiagnosticService.instance.http(

@@ -229,7 +229,7 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
         email: email,
         tokenOrCookie: cleanCookieHeader,
         displayName: extractedName ?? 'Broadcom User',
-        csrfToken: extractedCsrf ?? 'YaLAJUoR',
+        csrfToken: extractedCsrf,
       );
 
       if (mounted) {

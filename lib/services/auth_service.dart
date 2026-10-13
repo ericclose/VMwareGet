@@ -219,7 +219,7 @@ class AuthService {
         final data = jsonDecode(content) as Map<String, dynamic>;
         final cookies = data['cookies'] as Map<String, dynamic>? ?? {};
         final email = data['email']?.toString() ?? '';
-        final csrf = data['headers']?['x-csrf-token']?.toString() ?? 'YaLAJUoR';
+        final csrf = data['headers']?['x-csrf-token']?.toString() ?? '';
         final cookieStr =
             cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
         return {
@@ -229,6 +229,37 @@ class AuthService {
         };
       }
     } catch (_) {}
+    return null;
+  }
+
+  /// Dynamically extracts the active Liferay.authToken from the Broadcom support portal.
+  Future<String?> fetchDynamicCsrfToken(String cookieHeader) async {
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+          followRedirects: true,
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Cookie': cleanCookieString(cookieHeader),
+          },
+        ),
+      );
+      final resp = await dio.get('https://support.broadcom.com/group/ecx/productdownloads');
+      final match = RegExp(r'''Liferay\.authToken\s*=\s*['"]([^'"]+)['"]''').firstMatch(resp.data.toString());
+      if (match != null) {
+        final token = match.group(1)?.trim();
+        if (token != null && token.isNotEmpty) {
+          DiagnosticService.instance.info('Auth', 'Dynamically fetched Liferay.authToken: $token');
+          return token;
+        }
+      }
+    } catch (e) {
+      DiagnosticService.instance.warn('Auth', 'Failed to fetch dynamic CSRF token: $e');
+    }
     return null;
   }
 
@@ -253,7 +284,13 @@ class AuthService {
         ),
       );
       final cookieHeader = cleanCookieString(session.cookieJar ?? session.sessionToken);
-      final csrfHeader = session.csrfToken ?? 'YaLAJUoR';
+      String? csrfHeader = session.csrfToken;
+      if (csrfHeader == null || csrfHeader.isEmpty) {
+        csrfHeader = await fetchDynamicCsrfToken(cookieHeader);
+      }
+      if (csrfHeader == null || csrfHeader.isEmpty) {
+        return false;
+      }
       final resp = await dio.post(
         'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
         data: {
@@ -309,6 +346,11 @@ class AuthService {
 
     cleanCookie = cleanCookieString(cleanCookie);
 
+    // If CSRF token was not provided in input, dynamically resolve it from the portal
+    if (extractedCsrf == null || extractedCsrf.isEmpty) {
+      extractedCsrf = await fetchDynamicCsrfToken(cleanCookie);
+    }
+
     final session = AuthSession(
       email: email.trim(),
       displayName: displayName?.trim().isNotEmpty == true
@@ -316,7 +358,7 @@ class AuthService {
           : (email.contains('@') ? email.split('@').first : 'Eric Close'),
       sessionToken: cleanCookie,
       cookieJar: cleanCookie,
-      csrfToken: extractedCsrf ?? 'YaLAJUoR',
+      csrfToken: extractedCsrf,
       createdAt: DateTime.now(),
       expiresAt: DateTime.now().add(const Duration(days: 30)),
       isExportComplianceVerified: true,
@@ -570,7 +612,10 @@ class AuthService {
 
         final csrf = (extractedCsrf != null && extractedCsrf.isNotEmpty)
             ? extractedCsrf
-            : 'YaLAJUoR';
+            : '';
+        if (csrf.isEmpty) {
+          return;
+        }
 
         onStatusUpdate?.call('Broadcom portal detected. Verifying session...');
 

@@ -27,8 +27,13 @@ class SettingsView extends StatelessWidget {
     final downloadProvider = Provider.of<DownloadProvider>(context);
     final session = auth.currentSession;
 
+    final isCompact = MediaQuery.of(context).size.width < 600;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 16 : 24,
+        vertical: 20,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: Column(
@@ -52,7 +57,7 @@ class SettingsView extends StatelessWidget {
             const SizedBox(height: 10),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(isCompact ? 16 : 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -67,7 +72,7 @@ class SettingsView extends StatelessWidget {
                             size: 26,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,16 +82,21 @@ class SettingsView extends StatelessWidget {
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 session?.email ?? 'No active session',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         FilledButton.tonal(
                           style: FilledButton.styleFrom(
                             foregroundColor: colorScheme.error,
@@ -100,49 +110,71 @@ class SettingsView extends StatelessWidget {
                     const Divider(),
                     const SizedBox(height: 12),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.verified_rounded,
-                          size: 16,
-                          color: Colors.green.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.exportComplianceScreening,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.verified_rounded,
+                            size: 16,
+                            color: Colors.green.shade700,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.complianceApproved,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.green.shade800,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${l10n.exportComplianceScreening}: ',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: l10n.complianceApproved,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.green.shade800,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.lock_clock_outlined,
-                          size: 16,
-                          color: colorScheme.outline,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.sessionPersistence,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.lock_clock_outlined,
+                            size: 16,
+                            color: colorScheme.outline,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.encryptedStorageActive,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${l10n.sessionPersistence}: ',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: l10n.encryptedStorageActive,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -462,14 +494,15 @@ class SettingsView extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Row(
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
                       children: [
                         FilledButton.tonalIcon(
                           icon: const Icon(Icons.analytics_outlined, size: 16),
                           label: Text(l10n.viewDiagnosticLogs),
                           onPressed: () => DiagnosticDialog.show(context),
                         ),
-                        const SizedBox(width: 10),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.copy_rounded, size: 16),
                           label: Text(l10n.copyAllLogs),

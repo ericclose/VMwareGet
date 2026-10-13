@@ -424,7 +424,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inAppBrowserDesc =>
-      'Opens secure WKWebView window & auto-captures session cookies upon login';
+      'Opens secure in-app browser & auto-captures session cookies upon login';
 
   @override
   String get signInViaInApp => 'Sign In via In-App Browser';

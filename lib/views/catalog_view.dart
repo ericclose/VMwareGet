@@ -27,18 +27,24 @@ class CatalogView extends StatelessWidget {
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 840;
 
+        final isNarrow = constraints.maxWidth < 430;
+
         final productSelector = Center(
           child: SegmentedButton<VMwareProductFamily>(
-            segments: const [
+            segments: [
               ButtonSegment<VMwareProductFamily>(
                 value: VMwareProductFamily.workstationPro,
-                label: Text('VMware Workstation Pro'),
-                icon: Icon(Icons.computer_rounded),
+                label: Text(
+                  isNarrow ? 'Workstation' : 'VMware Workstation Pro',
+                ),
+                icon: const Icon(Icons.computer_rounded),
               ),
               ButtonSegment<VMwareProductFamily>(
                 value: VMwareProductFamily.fusion,
-                label: Text('VMware Fusion'),
-                icon: Icon(Icons.laptop_mac_rounded),
+                label: Text(
+                  isNarrow ? 'Fusion' : 'VMware Fusion',
+                ),
+                icon: const Icon(Icons.laptop_mac_rounded),
               ),
             ],
             selected: {catalog.selectedFamily},

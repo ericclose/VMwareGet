@@ -213,6 +213,7 @@ class _LoginDialogState extends State<LoginDialog> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 510),
@@ -354,7 +355,10 @@ class _LoginDialogState extends State<LoginDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             Text(
                               l10n.inAppBrowserTitle,
@@ -362,7 +366,6 @@ class _LoginDialogState extends State<LoginDialog> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -445,31 +448,44 @@ class _LoginDialogState extends State<LoginDialog> {
           ),
         ),
         const SizedBox(height: 14),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
           children: [
-            TextButton.icon(
-              icon: const Icon(Icons.bolt_rounded, size: 16),
-              label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
-              onPressed: _isSubmitting ? null : _useQuickDemoSession,
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.bolt_rounded, size: 16),
+                  label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
+                  onPressed: _isSubmitting ? null : _useQuickDemoSession,
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.launch_rounded, size: 14),
+                  label: Text(l10n.externalBrowser, style: const TextStyle(fontSize: 12)),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => authProvider.openBroadcomLoginPortal(),
+                ),
+              ],
             ),
-            const SizedBox(width: 4),
-            TextButton.icon(
-              icon: const Icon(Icons.launch_rounded, size: 14),
-              label: Text(l10n.externalBrowser, style: const TextStyle(fontSize: 12)),
-              onPressed: _isSubmitting
-                  ? null
-                  : () => authProvider.openBroadcomLoginPortal(),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.bug_report_outlined, size: 16),
-              tooltip: l10n.viewDiagnosticLogs,
-              onPressed: () => DiagnosticDialog.show(context),
-            ),
-            const SizedBox(width: 4),
-            TextButton(
-              onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
-              child: Text(l10n.cancel),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.bug_report_outlined, size: 16),
+                  tooltip: l10n.viewDiagnosticLogs,
+                  onPressed: () => DiagnosticDialog.show(context),
+                ),
+                TextButton(
+                  onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                  child: Text(l10n.cancel),
+                ),
+              ],
             ),
           ],
         ),
@@ -490,7 +506,9 @@ class _LoginDialogState extends State<LoginDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               OutlinedButton.icon(
                 icon: const Icon(Icons.content_paste_rounded, size: 14),
@@ -501,7 +519,6 @@ class _LoginDialogState extends State<LoginDialog> {
                 ),
                 onPressed: _pasteFromClipboard,
               ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.copy_rounded, size: 14),
                 label: Text(l10n.copyHelperSnippet, style: const TextStyle(fontSize: 12)),
@@ -588,28 +605,36 @@ class _LoginDialogState extends State<LoginDialog> {
             },
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.bolt_rounded, size: 16),
                 label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
                 onPressed: _isSubmitting ? null : _useQuickDemoSession,
               ),
-              const Spacer(),
-              TextButton(
-                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
-                child: Text(l10n.cancel),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(l10n.connectSession),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                    child: Text(l10n.cancel),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(l10n.connectSession),
+                  ),
+                ],
               ),
             ],
           ),

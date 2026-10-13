@@ -21,8 +21,13 @@ class DownloadsView extends StatelessWidget {
 
     final downloads = downloadProvider.allDownloads;
 
+    final isCompact = MediaQuery.of(context).size.width < 600;
+
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 14 : 20,
+        vertical: isCompact ? 14 : 20,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -76,19 +81,28 @@ class DownloadsView extends StatelessWidget {
           // Download stats header
           Row(
             children: [
-              Text(
-                l10n.activeRecentTransfers,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.activeRecentTransfers,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (downloadProvider.activeCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Badge(
+                        label: Text(l10n.activeCountBadge(downloadProvider.activeCount)),
+                        backgroundColor: colorScheme.primary,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (downloadProvider.activeCount > 0)
-                Badge(
-                  label: Text(l10n.activeCountBadge(downloadProvider.activeCount)),
-                  backgroundColor: colorScheme.primary,
-                ),
-              const Spacer(),
               if (downloadProvider.completedCount > 0)
                 TextButton.icon(
                   style: TextButton.styleFrom(

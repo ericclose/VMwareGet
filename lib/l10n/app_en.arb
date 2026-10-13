@@ -133,7 +133,7 @@
   "tabInAppBrowser": "In-App Web",
   "tabManualImport": "cURL / Manual Import",
   "inAppBrowserTitle": "In-App Browser Authentication",
-  "inAppBrowserDesc": "Opens secure WKWebView window & auto-captures session cookies upon login",
+  "inAppBrowserDesc": "Opens secure in-app browser & auto-captures session cookies upon login",
   "signInViaInApp": "Sign In via In-App Browser",
   "authenticatingInApp": "Authenticating in-app portal...",
   "instantDemoSession": "Instant Demo Session",

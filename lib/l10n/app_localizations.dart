@@ -901,7 +901,7 @@ abstract class AppLocalizations {
   /// No description provided for @inAppBrowserDesc.
   ///
   /// In en, this message translates to:
-  /// **'Opens secure WKWebView window & auto-captures session cookies upon login'**
+  /// **'Opens secure in-app browser & auto-captures session cookies upon login'**
   String get inAppBrowserDesc;
 
   /// No description provided for @signInViaInApp.

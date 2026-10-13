@@ -117,10 +117,11 @@ class OnboardingView extends StatelessWidget {
                       SizedBox(height: gapLarge),
 
                       // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.icon(
+                      if (constraints.maxWidth < 420)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            FilledButton.icon(
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.symmetric(
                                   vertical: isCompact ? 12 : 16,
@@ -139,10 +140,8 @@ class OnboardingView extends StatelessWidget {
                               ),
                               onPressed: () => _showLoginDialog(context),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
                                 padding: EdgeInsets.symmetric(
                                   vertical: isCompact ? 12 : 16,
@@ -162,9 +161,57 @@ class OnboardingView extends StatelessWidget {
                               onPressed: () =>
                                   authProvider.openBroadcomRegistrationPortal(),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isCompact ? 12 : 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.login_rounded),
+                                label: const Text(
+                                  'Log In with Broadcom',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                onPressed: () => _showLoginDialog(context),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isCompact ? 12 : 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.open_in_browser_rounded),
+                                label: const Text(
+                                  'Register Account',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    authProvider.openBroadcomRegistrationPortal(),
+                              ),
+                            ),
+                          ],
+                        ),
                       SizedBox(height: isCompact ? 8 : 14),
 
                       // Quick guest / explore mode

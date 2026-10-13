@@ -128,7 +128,10 @@ class MetadataPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           item.family == VMwareProductFamily.workstationPro
@@ -139,7 +142,6 @@ class MetadataPanel extends StatelessWidget {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -174,142 +176,297 @@ class MetadataPanel extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Download Action Banner / Button
-          if (downloadItem == null)
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.download_rounded),
-                    label: Text(
-                      l10n.downloadPackage,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onPressed: () async {
-                      final confirmed =
-                          await DownloadDirDialog.showIfNeeded(context);
-                      if (!confirmed) return;
-                      downloadProvider.startDownload(
-                        release: item,
-                        session: authSession,
-                        sessionCookie: authSession?.cookieJar ??
-                            authSession?.sessionToken,
-                      );
-                      onNavigateToDownloads();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.link_rounded, size: 20),
-                  label: Text(l10n.copyDirectDownloadLink),
-                  onPressed: () => _copyDownloadLink(
-                    context,
-                    item,
-                    authSession,
-                    downloadProvider,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: downloadItem.status == DownloadStatus.completed
-                    ? Colors.green.withValues(alpha: 0.15)
-                    : colorScheme.primaryContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: downloadItem.status == DownloadStatus.completed
-                      ? Colors.green.withValues(alpha: 0.5)
-                      : colorScheme.primary.withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    downloadItem.status == DownloadStatus.completed
-                        ? Icons.check_circle_rounded
-                        : Icons.downloading_rounded,
-                    color: downloadItem.status == DownloadStatus.completed
-                        ? Colors.green
-                        : colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          downloadItem.status == DownloadStatus.completed
-                              ? l10n.packageDownloaded
-                              : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 460;
+              if (downloadItem == null) {
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        Text(
-                          downloadItem.status == DownloadStatus.completed
-                              ? l10n.verifiedAgainstChecksums
-                              : downloadItem.formattedSpeed,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                        icon: const Icon(Icons.download_rounded),
+                        label: Text(
+                          l10n.downloadPackage,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
+                        onPressed: () async {
+                          final confirmed =
+                              await DownloadDirDialog.showIfNeeded(context);
+                          if (!confirmed) return;
+                          downloadProvider.startDownload(
+                            release: item,
+                            session: authSession,
+                            sessionCookie: authSession?.cookieJar ??
+                                authSession?.sessionToken,
+                          );
+                          onNavigateToDownloads();
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.link_rounded, size: 20),
+                        label: Text(l10n.copyDirectDownloadLink),
+                        onPressed: () => _copyDownloadLink(
+                          context,
+                          item,
+                          authSession,
+                          downloadProvider,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.download_rounded),
+                        label: Text(
+                          l10n.downloadPackage,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: () async {
+                          final confirmed =
+                              await DownloadDirDialog.showIfNeeded(context);
+                          if (!confirmed) return;
+                          downloadProvider.startDownload(
+                            release: item,
+                            session: authSession,
+                            sessionCookie: authSession?.cookieJar ??
+                                authSession?.sessionToken,
+                          );
+                          onNavigateToDownloads();
+                        },
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: l10n.copyDirectDownloadLink,
-                    icon: const Icon(Icons.link_rounded),
-                    onPressed: () => _copyDownloadLink(
-                      context,
-                      item,
-                      authSession,
-                      downloadProvider,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  if (downloadItem.status == DownloadStatus.completed) ...[
+                    const SizedBox(width: 10),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      icon: const Icon(Icons.folder_open_rounded, size: 16),
-                      label: Text(
-                        Platform.isMacOS
-                            ? l10n.showInFinder
-                            : l10n.showInFolder,
+                      icon: const Icon(Icons.link_rounded, size: 20),
+                      label: Text(l10n.copyDirectDownloadLink),
+                      onPressed: () => _copyDownloadLink(
+                        context,
+                        item,
+                        authSession,
+                        downloadProvider,
                       ),
-                      onPressed: () => downloadProvider
-                          .openContainingFolder(downloadItem.id),
                     ),
-                    const SizedBox(width: 8),
                   ],
-                  FilledButton.tonal(
-                    onPressed: onNavigateToDownloads,
-                    child: Text(l10n.viewManager),
+                );
+              }
+
+              // downloadItem != null
+              if (isCompact) {
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: downloadItem.status == DownloadStatus.completed
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: downloadItem.status == DownloadStatus.completed
+                          ? Colors.green.withValues(alpha: 0.5)
+                          : colorScheme.primary.withValues(alpha: 0.5),
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            downloadItem.status == DownloadStatus.completed
+                                ? Icons.check_circle_rounded
+                                : Icons.downloading_rounded,
+                            color: downloadItem.status == DownloadStatus.completed
+                                ? Colors.green
+                                : colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  downloadItem.status == DownloadStatus.completed
+                                      ? l10n.packageDownloaded
+                                      : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  downloadItem.status == DownloadStatus.completed
+                                      ? l10n.verifiedAgainstChecksums
+                                      : downloadItem.formattedSpeed,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: l10n.copyDirectDownloadLink,
+                            icon: const Icon(Icons.link_rounded),
+                            onPressed: () => _copyDownloadLink(
+                              context,
+                              item,
+                              authSession,
+                              downloadProvider,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (downloadItem.status == DownloadStatus.completed)
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.folder_open_rounded, size: 16),
+                              label: Text(
+                                Platform.isMacOS
+                                    ? l10n.showInFinder
+                                    : l10n.showInFolder,
+                              ),
+                              onPressed: () => downloadProvider
+                                  .openContainingFolder(downloadItem.id),
+                            ),
+                          FilledButton.tonal(
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: onNavigateToDownloads,
+                            child: Text(l10n.viewManager),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: downloadItem.status == DownloadStatus.completed
+                      ? Colors.green.withValues(alpha: 0.15)
+                      : colorScheme.primaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: downloadItem.status == DownloadStatus.completed
+                        ? Colors.green.withValues(alpha: 0.5)
+                        : colorScheme.primary.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      downloadItem.status == DownloadStatus.completed
+                          ? Icons.check_circle_rounded
+                          : Icons.downloading_rounded,
+                      color: downloadItem.status == DownloadStatus.completed
+                          ? Colors.green
+                          : colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            downloadItem.status == DownloadStatus.completed
+                                ? l10n.packageDownloaded
+                                : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            downloadItem.status == DownloadStatus.completed
+                                ? l10n.verifiedAgainstChecksums
+                                : downloadItem.formattedSpeed,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.copyDirectDownloadLink,
+                      icon: const Icon(Icons.link_rounded),
+                      onPressed: () => _copyDownloadLink(
+                        context,
+                        item,
+                        authSession,
+                        downloadProvider,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    if (downloadItem.status == DownloadStatus.completed) ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.folder_open_rounded, size: 16),
+                        label: Text(
+                          Platform.isMacOS
+                              ? l10n.showInFinder
+                              : l10n.showInFolder,
+                        ),
+                        onPressed: () => downloadProvider
+                            .openContainingFolder(downloadItem.id),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    FilledButton.tonal(
+                      onPressed: onNavigateToDownloads,
+                      child: Text(l10n.viewManager),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           const SizedBox(height: 24),
           const Divider(),

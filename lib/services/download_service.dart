@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -626,6 +627,11 @@ class DownloadService {
         final directoryPath = File(filePath).parent.path;
         await Process.run('xdg-open', [directoryPath]);
         return;
+      } else if (Platform.isAndroid) {
+        const channel = MethodChannel('io.github.vmwareget/platform');
+        final directoryPath = File(filePath).parent.path;
+        await channel.invokeMethod('openDirectory', {'path': directoryPath});
+        return;
       }
     } catch (_) {}
 
@@ -638,6 +644,13 @@ class DownloadService {
   }
 
   Future<void> openFile(String filePath) async {
+    if (Platform.isAndroid) {
+      try {
+        const channel = MethodChannel('io.github.vmwareget/platform');
+        await channel.invokeMethod('openFile', {'path': filePath});
+        return;
+      } catch (_) {}
+    }
     final uri = Uri.file(filePath);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);

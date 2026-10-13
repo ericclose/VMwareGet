@@ -138,4 +138,66 @@ void main() {
     expect(results.isNotEmpty, isTrue);
     expect(results.every((r) => r.version == '26H1u1'), isTrue);
   });
+
+  test('searchReleases matches case-insensitively across fileName and platformLabel', () {
+    catalogService.setReleases([
+      const VMwareReleaseItem(
+        id: 'ws-pro-26h1u1-win-25688693',
+        family: VMwareProductFamily.workstationPro,
+        version: '26H1u1',
+        buildNumber: '25688693',
+        platform: VMwarePlatform.windows,
+        platformLabel: 'Windows 64-bit (.exe)',
+        fileName: 'VMware-Workstation-Full-26H1u1-25688693.exe',
+        fileSize: '267.6 MB',
+        fileSizeBytes: 280609368,
+        releaseDate: 'Sep 03, 2026',
+        lastUpdated: 'Aug 26, 2026',
+        sha256: '3d775c3c2153600eef4642f95d519a514ba7e861400bda2598352bff792db473',
+        md5: '9209838fcb622438e87422a25622bfa7',
+        officialDownloadUrl: 'https://support.broadcom.com',
+        isOnlineFetched: true,
+      ),
+      const VMwareReleaseItem(
+        id: 'fusion-26h1u1-macos-25689522',
+        family: VMwareProductFamily.fusion,
+        version: '26H1u1',
+        buildNumber: '25689522',
+        platform: VMwarePlatform.macos,
+        platformLabel: 'macOS Universal (.dmg)',
+        fileName: 'VMware-Fusion-26H1u1-25689522_universal.dmg',
+        fileSize: '497.2 MB',
+        fileSizeBytes: 521403629,
+        releaseDate: 'Sep 03, 2026',
+        lastUpdated: 'Aug 26, 2026',
+        sha256: 'df1911f8de651818a43c20ca1054403da7e39534f15a2e0e0f9d41ffcf728ab8',
+        md5: '72390276a1eaef54d57363e008b98c8d',
+        officialDownloadUrl: 'https://support.broadcom.com',
+        isOnlineFetched: true,
+      ),
+    ]);
+
+    // Search by lowercase platform
+    final winResults = catalogService.searchReleases(
+      family: VMwareProductFamily.workstationPro,
+      query: 'windows',
+    );
+    expect(winResults.length, equals(1));
+    expect(winResults.first.id, equals('ws-pro-26h1u1-win-25688693'));
+
+    // Search by uppercase file extension
+    final macResults = catalogService.searchReleases(
+      family: VMwareProductFamily.fusion,
+      query: '.DMG',
+    );
+    expect(macResults.length, equals(1));
+    expect(macResults.first.id, equals('fusion-26h1u1-macos-25689522'));
+
+    // Blank query returns all releases in family
+    final allInFamily = catalogService.searchReleases(
+      family: VMwareProductFamily.workstationPro,
+      query: '   ',
+    );
+    expect(allInFamily.length, equals(1));
+  });
 }

@@ -118,6 +118,59 @@ void main() {
       expect(loaded?.isValid, isTrue);
     });
 
+    test('authenticateManual extracts x-csrf-token from raw cURL command', () async {
+      SharedPreferences.setMockInitialValues({});
+      final authService = AuthService();
+      const curlCommand = "curl 'https://support.broadcom.com/group/ecx/productdownloads' "
+          "-H 'Cookie: JSESSIONID=SECRET_SESS_123; liferay-ingress=ROUTE_999' "
+          "-H 'x-csrf-token: DYN_TOKEN_7788' --compressed";
+
+      final session = await authService.authenticateManual(
+        email: 'dev@broadcom.user',
+        tokenOrCookie: curlCommand,
+      );
+
+      expect(session.email, equals('dev@broadcom.user'));
+      expect(session.csrfToken, equals('DYN_TOKEN_7788'));
+      expect(session.cookieJar?.contains('JSESSIONID=SECRET_SESS_123'), isTrue);
+      expect(session.cookieJar?.contains('liferay-ingress=ROUTE_999'), isTrue);
+    });
+
+    test('authenticateManual extracts x-csrf-token from text input and infers display name', () async {
+      SharedPreferences.setMockInitialValues({});
+      final authService = AuthService();
+      const rawInput = "JSESSIONID=MY_SESSION; x-csrf-token: EXTRACTED_CSRF_456";
+
+      final session = await authService.authenticateManual(
+        email: 'alice.smith@broadcom.com',
+        tokenOrCookie: rawInput,
+      );
+
+      expect(session.displayName, equals('alice.smith'));
+      expect(session.csrfToken, equals('EXTRACTED_CSRF_456'));
+      expect(session.cookieJar?.contains('JSESSIONID=MY_SESSION'), isTrue);
+    });
+
+    test('AuthSession isValid correctly detects expired vs active sessions', () {
+      final activeSession = AuthSession(
+        email: 'active@example.com',
+        displayName: 'Active User',
+        sessionToken: 'active_token',
+        createdAt: DateTime.now(),
+        expiresAt: DateTime.now().add(const Duration(hours: 2)),
+      );
+      expect(activeSession.isValid, isTrue);
+
+      final expiredSession = AuthSession(
+        email: 'expired@example.com',
+        displayName: 'Expired User',
+        sessionToken: 'expired_token',
+        createdAt: DateTime.now().subtract(const Duration(days: 31)),
+        expiresAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+      expect(expiredSession.isValid, isFalse);
+    });
+
     test('getWindowsWebviewDataDir returns non-empty user-writable path', () {
       AuthService.resetWindowsWebviewDataDirForTesting();
       final dataDir = AuthService.getWindowsWebviewDataDir();

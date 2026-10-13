@@ -53,6 +53,7 @@ class DiagnosticService extends ChangeNotifier {
 
   final List<DiagnosticLogEntry> _entries = [];
   static const int maxEntries = 500;
+  bool enableConsoleLogging = true;
 
   List<DiagnosticLogEntry> get entries => List.unmodifiable(_entries);
 
@@ -73,7 +74,9 @@ class DiagnosticService extends ChangeNotifier {
     if (_entries.length > maxEntries) {
       _entries.removeRange(0, _entries.length - maxEntries);
     }
-    debugPrint(entry.format());
+    if (enableConsoleLogging) {
+      debugPrint(entry.format());
+    }
     notifyListeners();
   }
 

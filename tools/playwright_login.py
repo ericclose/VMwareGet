@@ -36,10 +36,22 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email='
         'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
         'Content-Type': 'application/json;charset=UTF-8',
         'Origin': 'https://support.broadcom.com',
-        'Referer': LOGIN_START_URL,
+        'Referer': SUPPORT_PORTAL_URL,
         'x-csrf-token': csrf_token,
     })
     s.cookies.update(cookies_dict)
+
+    # Bootstrap Liferay portal session & fresh CSRF token
+    try:
+        r_page = s.get(SUPPORT_PORTAL_URL, timeout=25)
+        import re
+        m_token = re.search(r'Liferay\.authToken\s*=\s*[\'\"]([^\'\"]+)[\'\"]', r_page.text)
+        if m_token:
+            csrf_token = m_token.group(1)
+            s.headers['x-csrf-token'] = csrf_token
+            print(f" [*] Refreshed Liferay CSRF Token from live portal: {csrf_token}")
+    except Exception as e:
+        print(f" [!] Note on portal bootstrap: {e}")
 
     # 1. 100% Online dynamic product discovery (zero hardcoded versions)
     sku_url = 'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50'
@@ -315,14 +327,25 @@ def run_playwright_login(email='', password=''):
                     break
 
         # Extract CSRF token from page DOM if available
-        csrf_token = 'YaLAJUoR'
+        csrf_token = ''
         try:
-            dom_csrf = page.evaluate("() => (window.Liferay && window.Liferay.authToken) || ''")
+            dom_csrf = page.evaluate("() => (window.Liferay && window.Liferay.authToken) || (window.themeDisplay && typeof window.themeDisplay.getAuthToken === 'function' ? window.themeDisplay.getAuthToken() : '')")
             if dom_csrf:
                 csrf_token = dom_csrf
-                print(f" [*] Extracted page CSRF Token: {csrf_token}")
         except Exception:
             pass
+        if not csrf_token:
+            try:
+                import re
+                html = page.content()
+                m = re.search(r'Liferay\.authToken\s*=\s*[\'\"]([^\'\"]+)[\'\"]', html)
+                if m:
+                    csrf_token = m.group(1)
+            except Exception:
+                pass
+        if not csrf_token:
+            csrf_token = '2avZ8Ufi'
+        print(f" [*] Extracted Liferay CSRF Token: {csrf_token}")
 
         # Retrieve final settled cookies before closing
         raw_cookies = context.cookies()

@@ -229,7 +229,53 @@ class CatalogService {
         return [];
       }
 
-      final skuData = parseJsonMap(skuResp.data);
+      Map<String, dynamic>? skuData = parseJsonMap(skuResp.data);
+      if (skuData == null) {
+        DiagnosticService.instance.warn(
+          'Catalog',
+          'Empty or non-JSON SKU response for $subFamily, bootstrapping portal session...',
+        );
+        try {
+          final pageResp = await _dio.get(
+            'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
+            options: Options(
+              headers: {
+                'Cookie': cookieHeader,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+            ),
+          );
+          String activeCsrf = csrfHeader;
+          final match = RegExp(r'''Liferay\.authToken\s*=\s*['"]([^'"]+)['"]''').firstMatch(pageResp.data.toString());
+          if (match != null) {
+            activeCsrf = match.group(1)!;
+            DiagnosticService.instance.info('Catalog', 'Extracted fresh Liferay.authToken: $activeCsrf');
+          }
+          final retryResp = await _dio.post(
+            'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
+            data: {
+              'subFamily': subFamily,
+              'searchVal': '',
+              'language': 'EN',
+              'freeDownloads': true,
+            },
+            options: Options(
+              headers: {
+                'Cookie': cookieHeader,
+                'x-csrf-token': activeCsrf,
+                'Origin': 'https://support.broadcom.com',
+                'Referer':
+                    'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
+                'Accept': 'application/json, text/plain, */*',
+              },
+            ),
+          );
+          skuData = parseJsonMap(retryResp.data);
+        } catch (e) {
+          DiagnosticService.instance.warn('Catalog', 'Portal bootstrap retry failed: $e');
+        }
+      }
+
       if (skuData == null) {
         final preview = skuResp.data.toString();
         _lastSyncError = 'Broadcom returned non-JSON response body: ${preview.length > 150 ? '${preview.substring(0, 150)}...' : preview}';

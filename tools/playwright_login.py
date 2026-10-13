@@ -16,7 +16,8 @@ import requests
 from playwright.sync_api import sync_playwright
 
 SESSION_FILE = os.path.join(os.path.dirname(__file__), '.session.json')
-LOGIN_START_URL = 'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true'
+LOGIN_START_URL = 'https://access.broadcom.com/'
+SUPPORT_PORTAL_URL = 'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true'
 
 
 def verify_session_against_broadcom(cookies_dict, csrf_token='YaLAJUoR', email=''):
@@ -258,7 +259,7 @@ def run_playwright_login(email='', password=''):
         except Exception as e:
             print(f" [!] Note on password step: {e}")
 
-        # 3. Wait for settlement back to support.broadcom.com
+        # 3. Wait for settlement on access.broadcom.com and bridge to support.broadcom.com
         print(" [*] Waiting for login callback and session completion (up to 90s)...")
         print("     (If you have 2FA/SMS/VIP code enabled, please approve it now)")
 
@@ -271,25 +272,47 @@ def run_playwright_login(email='', password=''):
             cookies_dict = {c['name']: c['value'] for c in raw_cookies}
             cur_url = page.url.lower()
 
-            is_back_at_support = (
-                'support.broadcom.com' in cur_url and
-                'access.broadcom.com' not in cur_url and
-                'signin' not in cur_url and
-                'saml' not in cur_url
-            )
-            has_auth_cookies = 'SAML_SP_SESSION_KEY' in cookies_dict and 'JSESSIONID' in cookies_dict
+            # Check if user already reached support portal directly
+            if 'support.broadcom.com' in cur_url and ('JSESSIONID' in cookies_dict or 'SAML_SP_SESSION_KEY' in cookies_dict):
+                authenticated = True
+                print("\n [✓] Successfully landed on support.broadcom.com with authenticated session!")
+                time.sleep(3)
+                break
 
-            if is_back_at_support and has_auth_cookies:
-                authenticated = True
-                print("\n [✓] Successfully landed back on support.broadcom.com with authenticated session!")
-                # Give page 3 seconds to complete Liferay frontend bootstrap
-                time.sleep(3)
+            # Check if login settled on access.broadcom.com (passed the signin/login form)
+            passed_signin = (
+                '/signin' not in cur_url and
+                'idp/login' not in cur_url and
+                (
+                    'dashboard' in cur_url or
+                    'landing' in cur_url or
+                    'home' in cur_url or
+                    any(k for k in cookies_dict if 'session' in k.lower() or 'token' in k.lower() or '__secure' in k.lower() or 'auth' in k.lower())
+                )
+            )
+
+            if passed_signin and 'support.broadcom.com' not in cur_url:
+                print(f"\n [✓] Sign-in settled on {cur_url}! Navigating to Support Portal to establish Liferay SSO session...")
+                try:
+                    page.goto(SUPPORT_PORTAL_URL, timeout=45000)
+                    time.sleep(4)
+                except Exception as e:
+                    print(f" [!] Note navigating to support portal: {e}")
                 break
-            elif has_auth_cookies and 'access.broadcom.com' not in cur_url:
-                authenticated = True
-                print("\n [✓] Authenticated session detected!")
-                time.sleep(3)
-                break
+
+        # If navigated to support portal, wait for Liferay & SAML cookies to finish settling
+        if not authenticated:
+            for _ in range(30):
+                time.sleep(1)
+                raw_cookies = context.cookies()
+                cookies_dict = {c['name']: c['value'] for c in raw_cookies}
+                cur_url = page.url.lower()
+                has_auth_cookies = 'SAML_SP_SESSION_KEY' in cookies_dict or 'JSESSIONID' in cookies_dict
+                if 'support.broadcom.com' in cur_url and has_auth_cookies:
+                    authenticated = True
+                    print("\n [✓] Successfully landed on support.broadcom.com with authenticated session!")
+                    time.sleep(3)
+                    break
 
         # Extract CSRF token from page DOM if available
         csrf_token = 'YaLAJUoR'

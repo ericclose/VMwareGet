@@ -437,6 +437,7 @@ class AuthService {
         String? extractedName;
         bool isLoginPage = true;
         bool isSupportPortal = false;
+        bool isAccessSettled = false;
         bool jsIsSignedIn = false;
 
         try {
@@ -444,10 +445,13 @@ class AuthService {
             (() => {
               try {
                 const url = window.location.href;
-                const isLogin = url.includes('/login') || 
+                const isAccessSignIn = url.includes('access.broadcom.com') && (url.includes('/signin') || url.includes('/login') || url.includes('/idp/'));
+                const isLogin = isAccessSignIn ||
+                                url.includes('/login') || 
                                 url.includes('auth.broadcom.com') ||
                                 url.includes('login.broadcom.com') ||
                                 url.includes('okta.com');
+                const isAccessPassed = url.includes('access.broadcom.com') && !isAccessSignIn;
                 const isSupport = url.includes('support.broadcom.com') && !isLogin;
                 let csrf = window.Liferay?.authToken || '';
                 if (!csrf && window.themeDisplay && typeof window.themeDisplay.getAuthToken === 'function') {
@@ -473,6 +477,7 @@ class AuthService {
                 return JSON.stringify({
                   isLoginPage: !!isLogin,
                   isSupportPortal: !!isSupport,
+                  isAccessSettled: !!isAccessPassed,
                   isSignedIn: !!signedIn,
                   csrf: csrf,
                   email: email,
@@ -480,7 +485,7 @@ class AuthService {
                   url: url
                 });
               } catch(e) {
-                return JSON.stringify({ isLoginPage: true, isSupportPortal: false, isSignedIn: false, error: e.toString() });
+                return JSON.stringify({ isLoginPage: true, isSupportPortal: false, isAccessSettled: false, isSignedIn: false, error: e.toString() });
               }
             })()
           ''');
@@ -494,6 +499,7 @@ class AuthService {
             if (data is Map) {
               isLoginPage = data['isLoginPage'] == true;
               isSupportPortal = data['isSupportPortal'] == true;
+              isAccessSettled = data['isAccessSettled'] == true;
               jsIsSignedIn = data['isSignedIn'] == true;
               if (data['csrf']?.toString().isNotEmpty == true) {
                 extractedCsrf = data['csrf'].toString().trim();
@@ -507,11 +513,18 @@ class AuthService {
               }
               DiagnosticService.instance.info(
                 'Auth',
-                'WebView poll: ${cookies.length} cookies, url=${data['url']}, loginPage=$isLoginPage, supportPortal=$isSupportPortal, signedIn=$jsIsSignedIn',
+                'WebView poll: ${cookies.length} cookies, url=${data['url']}, loginPage=$isLoginPage, accessSettled=$isAccessSettled, supportPortal=$isSupportPortal, signedIn=$jsIsSignedIn',
               );
             }
           }
         } catch (_) {}
+
+        // If user logged in on access.broadcom.com, navigate to Support Portal to bridge Liferay SSO session
+        if (isAccessSettled && !isSupportPortal) {
+          DiagnosticService.instance.info('Auth', 'Sign-in settled on access.broadcom.com. Navigating to Support Portal for SSO session...');
+          webview.launch(AppConstants.workstationPortalUrl);
+          return;
+        }
 
         // Never attempt capture while user is on the login/SSO page
         if (isLoginPage || !isSupportPortal) {

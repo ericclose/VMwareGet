@@ -108,9 +108,12 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
     final host = uri.host.toLowerCase();
     final path = uri.path.toLowerCase();
 
-    final isLoginPage = path.contains('/login') ||
+    final isAccessSignIn = host.contains('access.broadcom.com') &&
+        (path.contains('/signin') || path.contains('/login') || path.contains('/idp/'));
+    final isLoginPage = isAccessSignIn ||
+        path.contains('/login') ||
         path.contains('/signin') ||
-        host.contains('access.broadcom.com');
+        host.contains('okta.com');
     final isSupportPortal = host == 'support.broadcom.com';
 
     if (isLoginPage) {
@@ -119,6 +122,19 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
           _status = 'Please complete sign-in in browser...';
         });
       }
+      return;
+    }
+
+    // If user settled on access.broadcom.com after authentication, bridge to support portal for Liferay cookies
+    if (host.contains('access.broadcom.com') && !isAccessSignIn) {
+      if (mounted && _status != 'Sign-in verified! Connecting to Support Portal...') {
+        setState(() {
+          _status = 'Sign-in verified! Connecting to Support Portal...';
+        });
+      }
+      _controller.loadRequest(
+        LoadRequestParams(uri: Uri.parse(AppConstants.workstationPortalUrl)),
+      );
       return;
     }
 

@@ -544,4 +544,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String copyLabel(String label) {
     return 'Copy $label';
   }
+
+  @override
+  String get copyDirectDownloadLink => 'Copy Direct Link';
+
+  @override
+  String get copyDirectDownloadLinkSuccess =>
+      'Direct download link copied to clipboard.';
+
+  @override
+  String get generatingDownloadLink => 'Generating authorized download link...';
+
+  @override
+  String get clearCompletedDownloads => 'Clear Completed History';
 }

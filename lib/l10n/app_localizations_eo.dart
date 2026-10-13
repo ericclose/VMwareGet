@@ -540,4 +540,18 @@ class AppLocalizationsEo extends AppLocalizations {
   String copyLabel(String label) {
     return 'Kopii $label';
   }
+
+  @override
+  String get copyDirectDownloadLink => 'Kopii Rektan Ligilon';
+
+  @override
+  String get copyDirectDownloadLinkSuccess =>
+      'Rekta elŝuta ligilo kopiita al tondujo.';
+
+  @override
+  String get generatingDownloadLink =>
+      'Generante rajtigitan elŝutan ligilon...';
+
+  @override
+  String get clearCompletedDownloads => 'Forigi Kompletigitan Historion';
 }

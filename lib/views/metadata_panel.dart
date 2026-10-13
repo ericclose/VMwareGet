@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import '../providers/auth_provider.dart';
@@ -27,6 +28,53 @@ class MetadataPanel extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(l10n.copiedToClipboard(label)),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _copyDownloadLink(
+    BuildContext context,
+    VMwareReleaseItem release,
+    AuthSession? session,
+    DownloadProvider downloadProvider,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final scaffold = ScaffoldMessenger.of(context);
+
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(l10n.generatingDownloadLink),
+          ],
+        ),
+        duration: const Duration(milliseconds: 600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    final url = await downloadProvider.resolveDownloadUrl(
+      release: release,
+      session: session,
+    );
+
+    await Clipboard.setData(ClipboardData(text: url));
+
+    scaffold.hideCurrentSnackBar();
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text(l10n.copyDirectDownloadLinkSuccess),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -127,29 +175,57 @@ class MetadataPanel extends StatelessWidget {
 
           // Download Action Banner / Button
           if (downloadItem == null)
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.download_rounded),
+                    label: Text(
+                      l10n.downloadPackage,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onPressed: () async {
+                      final confirmed =
+                          await DownloadDirDialog.showIfNeeded(context);
+                      if (!confirmed) return;
+                      downloadProvider.startDownload(
+                        release: item,
+                        session: authSession,
+                        sessionCookie: authSession?.cookieJar ??
+                            authSession?.sessionToken,
+                      );
+                      onNavigateToDownloads();
+                    },
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.download_rounded),
-              label: Text(
-                l10n.downloadPackage,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-              onPressed: () async {
-                final confirmed = await DownloadDirDialog.showIfNeeded(context);
-                if (!confirmed) return;
-                downloadProvider.startDownload(
-                  release: item,
-                  session: authSession,
-                  sessionCookie: authSession?.cookieJar ??
-                      authSession?.sessionToken,
-                );
-                onNavigateToDownloads();
-              },
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.link_rounded, size: 20),
+                  label: Text(l10n.copyDirectDownloadLink),
+                  onPressed: () => _copyDownloadLink(
+                    context,
+                    item,
+                    authSession,
+                    downloadProvider,
+                  ),
+                ),
+              ],
             )
           else ...[
             Container(
@@ -199,6 +275,17 @@ class MetadataPanel extends StatelessWidget {
                       ],
                     ),
                   ),
+                  IconButton(
+                    tooltip: l10n.copyDirectDownloadLink,
+                    icon: const Icon(Icons.link_rounded),
+                    onPressed: () => _copyDownloadLink(
+                      context,
+                      item,
+                      authSession,
+                      downloadProvider,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   if (downloadItem.status == DownloadStatus.completed) ...[
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -206,10 +293,12 @@ class MetadataPanel extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.folder_open_rounded, size: 16),
                       label: Text(
-                        Platform.isMacOS ? l10n.showInFinder : l10n.showInFolder,
+                        Platform.isMacOS
+                            ? l10n.showInFinder
+                            : l10n.showInFolder,
                       ),
-                      onPressed: () =>
-                          downloadProvider.openContainingFolder(downloadItem.id),
+                      onPressed: () => downloadProvider
+                          .openContainingFolder(downloadItem.id),
                     ),
                     const SizedBox(width: 8),
                   ],
@@ -256,6 +345,27 @@ class MetadataPanel extends StatelessWidget {
               icon: const Icon(Icons.copy_rounded, size: 16),
               onPressed: () =>
                   _copyToClipboard(context, l10n.fileName, item.fileName),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Direct Download Link Row
+          _buildMetadataCard(
+            context,
+            icon: Icons.link_rounded,
+            title: l10n.copyDirectDownloadLink,
+            value: item.filePath != null
+                ? '${item.fileName} (Direct CDN Link)'
+                : item.officialDownloadUrl,
+            action: IconButton(
+              tooltip: l10n.copyDirectDownloadLink,
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              onPressed: () => _copyDownloadLink(
+                context,
+                item,
+                authSession,
+                downloadProvider,
+              ),
             ),
           ),
           const SizedBox(height: 8),

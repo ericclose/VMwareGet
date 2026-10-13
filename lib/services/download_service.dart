@@ -201,6 +201,7 @@ class DownloadService {
         downloadUrl = authorizedUrl;
       }
     }
+    item.directDownloadUrl = downloadUrl;
 
     try {
       // 2. Check Range capability & remote file size via probe

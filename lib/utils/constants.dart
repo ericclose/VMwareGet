@@ -19,6 +19,7 @@ class AppConstants {
   static const String storageKeyDownloadDir = 'vmwareget_download_dir';
   static const String storageKeyDownloadThreads = 'vmwareget_download_threads';
   static const String storageKeyLocale = 'vmwareget_locale';
+  static const String storageKeyDownloadHistory = 'vmwareget_download_history';
 
   // Multi-threading Download Engine Defaults
   static const int defaultDownloadThreads = 16;

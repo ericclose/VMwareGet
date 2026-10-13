@@ -523,4 +523,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String copyLabel(String label) {
     return '复制 $label';
   }
+
+  @override
+  String get copyDirectDownloadLink => '复制下载直链';
+
+  @override
+  String get copyDirectDownloadLinkSuccess => '安装包下载直链已复制至剪贴板。';
+
+  @override
+  String get generatingDownloadLink => '正在生成授权下载直链...';
+
+  @override
+  String get clearCompletedDownloads => '清除已完成记录';
 }

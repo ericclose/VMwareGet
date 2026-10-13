@@ -1113,6 +1113,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy {label}'**
   String copyLabel(String label);
+
+  /// No description provided for @copyDirectDownloadLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Direct Link'**
+  String get copyDirectDownloadLink;
+
+  /// No description provided for @copyDirectDownloadLinkSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct download link copied to clipboard.'**
+  String get copyDirectDownloadLinkSuccess;
+
+  /// No description provided for @generatingDownloadLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating authorized download link...'**
+  String get generatingDownloadLink;
+
+  /// No description provided for @clearCompletedDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Completed History'**
+  String get clearCompletedDownloads;
 }
 
 class _AppLocalizationsDelegate

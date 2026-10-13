@@ -168,5 +168,9 @@
   "activeCountBadge": "{count} aktivaj",
   "copiedLogLines": "Kopiis {count} protokolajn liniojn al tondujo.",
   "copiedToClipboard": "{label} kopiita al tondujo.",
-  "copyLabel": "Kopii {label}"
+  "copyLabel": "Kopii {label}",
+  "copyDirectDownloadLink": "Kopii Rektan Ligilon",
+  "copyDirectDownloadLinkSuccess": "Rekta elŝuta ligilo kopiita al tondujo.",
+  "generatingDownloadLink": "Generante rajtigitan elŝutan ligilon...",
+  "clearCompletedDownloads": "Forigi Kompletigitan Historion"
 }

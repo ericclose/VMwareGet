@@ -168,5 +168,9 @@
   "activeCountBadge": "{count} 个进行中",
   "copiedLogLines": "已复制 {count} 条日志至剪贴板。",
   "copiedToClipboard": "已将 {label} 复制至剪贴板。",
-  "copyLabel": "复制 {label}"
+  "copyLabel": "复制 {label}",
+  "copyDirectDownloadLink": "复制下载直链",
+  "copyDirectDownloadLinkSuccess": "安装包下载直链已复制至剪贴板。",
+  "generatingDownloadLink": "正在生成授权下载直链...",
+  "clearCompletedDownloads": "清除已完成记录"
 }

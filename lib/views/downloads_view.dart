@@ -88,6 +88,16 @@ class DownloadsView extends StatelessWidget {
                   label: Text(l10n.activeCountBadge(downloadProvider.activeCount)),
                   backgroundColor: colorScheme.primary,
                 ),
+              const Spacer(),
+              if (downloadProvider.completedCount > 0)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.clear_all_rounded, size: 16),
+                  label: Text(l10n.clearCompletedDownloads),
+                  onPressed: () => downloadProvider.clearCompletedDownloads(),
+                ),
             ],
           ),
           const SizedBox(height: 8),

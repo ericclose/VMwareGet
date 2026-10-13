@@ -200,5 +200,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "copyDirectDownloadLink": "Copy Direct Link",
+  "copyDirectDownloadLinkSuccess": "Direct download link copied to clipboard.",
+  "generatingDownloadLink": "Generating authorized download link...",
+  "clearCompletedDownloads": "Clear Completed History"
 }

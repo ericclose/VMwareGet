@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
+import '../services/diagnostic_service.dart';
 import '../services/download_service.dart';
 import '../utils/constants.dart';
 
@@ -15,6 +17,7 @@ class DownloadProvider extends ChangeNotifier {
   bool _isDownloadDirConfirmed = false;
   String _defaultSystemDownloadDir = '';
   int _downloadThreads = AppConstants.defaultDownloadThreads;
+  DateTime _lastProgressPersistTime = DateTime.now();
 
   DownloadProvider() {
     _initDirectory();
@@ -31,6 +34,10 @@ class DownloadProvider extends ChangeNotifier {
       .toList();
 
   int get activeCount => activeDownloads.length;
+
+  int get completedCount => _items.values
+      .where((item) => item.status == DownloadStatus.completed)
+      .length;
 
   String? get downloadDirectory => _customDownloadDir;
   bool get isDownloadDirConfirmed => _isDownloadDirConfirmed;
@@ -58,7 +65,62 @@ class DownloadProvider extends ChangeNotifier {
     }
     _downloadThreads = prefs.getInt(AppConstants.storageKeyDownloadThreads) ??
         AppConstants.defaultDownloadThreads;
+
+    // Restore persisted download history
+    final historyJson = prefs.getString(AppConstants.storageKeyDownloadHistory);
+    if (historyJson != null && historyJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(historyJson);
+        if (decoded is List) {
+          for (final raw in decoded) {
+            if (raw is Map<String, dynamic>) {
+              final item = DownloadItem.fromJson(raw);
+              _items[item.id] = item;
+            }
+          }
+          DiagnosticService.instance.info(
+            'Download',
+            'Restored ${_items.length} download records from persistent storage',
+          );
+        }
+      } catch (e) {
+        DiagnosticService.instance.warn(
+          'Download',
+          'Failed to restore download records: $e',
+        );
+      }
+    }
+
     notifyListeners();
+  }
+
+  Future<void> _persistHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _items.values.map((item) => item.toJson()).toList();
+      await prefs.setString(
+        AppConstants.storageKeyDownloadHistory,
+        jsonEncode(list),
+      );
+    } catch (e) {
+      DiagnosticService.instance.warn(
+        'Download',
+        'Failed to persist download records: $e',
+      );
+    }
+  }
+
+  void _onDownloadUpdate(DownloadItem updated) {
+    _items[updated.id] = updated;
+    notifyListeners();
+    final now = DateTime.now();
+    if (updated.status == DownloadStatus.completed ||
+        updated.status == DownloadStatus.failed ||
+        updated.status == DownloadStatus.paused ||
+        now.difference(_lastProgressPersistTime).inSeconds >= 5) {
+      _lastProgressPersistTime = now;
+      _persistHistory();
+    }
   }
 
   Future<void> setDownloadThreads(int threads) async {
@@ -118,6 +180,40 @@ class DownloadProvider extends ChangeNotifier {
     return _items[releaseId];
   }
 
+  Future<String> resolveDownloadUrl({
+    required VMwareReleaseItem release,
+    AuthSession? session,
+  }) async {
+    final existing = _items[release.id];
+    if (existing?.directDownloadUrl != null &&
+        existing!.directDownloadUrl!.isNotEmpty) {
+      return existing.directDownloadUrl!;
+    }
+
+    if (session != null && release.filePath != null) {
+      try {
+        final authorized = await _downloadService.generateAuthorizedDownloadUrl(
+          release: release,
+          session: session,
+        );
+        if (authorized != null && authorized.isNotEmpty) {
+          if (existing != null) {
+            existing.directDownloadUrl = authorized;
+            _persistHistory();
+          }
+          return authorized;
+        }
+      } catch (e) {
+        DiagnosticService.instance.warn(
+          'Download',
+          'Failed to resolve direct download link: $e',
+        );
+      }
+    }
+
+    return release.officialDownloadUrl;
+  }
+
   Future<void> startDownload({
     required VMwareReleaseItem release,
     AuthSession? session,
@@ -137,15 +233,13 @@ class DownloadProvider extends ChangeNotifier {
 
     _items[item.id] = item;
     notifyListeners();
+    await _persistHistory();
 
     _downloadService.startOrResumeDownload(
       item: item,
       session: session,
       threads: _downloadThreads,
-      onUpdate: (updated) {
-        _items[updated.id] = updated;
-        notifyListeners();
-      },
+      onUpdate: _onDownloadUpdate,
     );
   }
 
@@ -153,6 +247,7 @@ class DownloadProvider extends ChangeNotifier {
     final item = _items[id];
     if (item != null) {
       _downloadService.pauseDownload(item);
+      _persistHistory();
       notifyListeners();
     }
   }
@@ -168,10 +263,7 @@ class DownloadProvider extends ChangeNotifier {
         item: item,
         session: session,
         threads: _downloadThreads,
-        onUpdate: (updated) {
-          _items[updated.id] = updated;
-          notifyListeners();
-        },
+        onUpdate: _onDownloadUpdate,
       );
     }
   }
@@ -181,10 +273,7 @@ class DownloadProvider extends ChangeNotifier {
     if (item != null) {
       await _downloadService.verifyDownloadedFile(
         item: item,
-        onUpdate: (updated) {
-          _items[updated.id] = updated;
-          notifyListeners();
-        },
+        onUpdate: _onDownloadUpdate,
       );
     }
   }
@@ -226,6 +315,13 @@ class DownloadProvider extends ChangeNotifier {
       }
       _items.remove(id);
       notifyListeners();
+      await _persistHistory();
     }
+  }
+
+  Future<void> clearCompletedDownloads() async {
+    _items.removeWhere((key, item) => item.status == DownloadStatus.completed);
+    notifyListeners();
+    await _persistHistory();
   }
 }

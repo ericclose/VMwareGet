@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vmwareget/models/download_item.dart';
+import 'package:vmwareget/models/vmware_product.dart';
 import 'package:vmwareget/providers/download_provider.dart';
 import 'package:vmwareget/utils/constants.dart';
 
@@ -58,6 +61,110 @@ void main() {
       await provider.setDownloadThreads(0);
       expect(provider.downloadThreads, equals(1));
       expect(prefs.getInt(AppConstants.storageKeyDownloadThreads), equals(1));
+    });
+
+    test('DownloadItem serialization and deserialization with directDownloadUrl and state safety', () {
+      const release = VMwareReleaseItem(
+        id: 'ws-17-win',
+        family: VMwareProductFamily.workstationPro,
+        version: '17.6.1',
+        buildNumber: '24319023',
+        platform: VMwarePlatform.windows,
+        platformLabel: 'Windows',
+        fileName: 'VMware-workstation-full-17.6.1.exe',
+        fileSize: '596.2 MB',
+        fileSizeBytes: 625123456,
+        releaseDate: '2024-10-10',
+        lastUpdated: '2024-10-10',
+        sha256: 'abc123sha256',
+        md5: 'def456md5',
+        officialDownloadUrl: 'https://support.broadcom.com/official-download',
+      );
+
+      final item = DownloadItem(
+        id: 'ws-17-win',
+        release: release,
+        destinationPath: '/Downloads/VMwareGet/VMware-workstation-full-17.6.1.exe',
+        status: DownloadStatus.downloading,
+        verificationStatus: VerificationStatus.notStarted,
+        downloadedBytes: 1000000,
+        totalBytes: 625123456,
+        startedAt: DateTime(2026, 1, 1),
+        directDownloadUrl: 'https://cdn.broadcom.com/direct-installer.exe?token=123',
+      );
+
+      final json = item.toJson();
+      expect(json['id'], equals('ws-17-win'));
+      expect(json['directDownloadUrl'], equals('https://cdn.broadcom.com/direct-installer.exe?token=123'));
+      expect(json['status'], equals('downloading'));
+
+      // When restoring, active downloading should be safely downgraded to paused
+      final restored = DownloadItem.fromJson(json);
+      expect(restored.id, equals('ws-17-win'));
+      expect(restored.status, equals(DownloadStatus.paused));
+      expect(restored.directDownloadUrl, equals('https://cdn.broadcom.com/direct-installer.exe?token=123'));
+      expect(restored.downloadedBytes, equals(1000000));
+    });
+
+    test('Restores persisted download history across app sessions and supports clearing completed', () async {
+      const releaseCompleted = VMwareReleaseItem(
+        id: 'fusion-13-mac',
+        family: VMwareProductFamily.fusion,
+        version: '13.6.1',
+        buildNumber: '24319024',
+        platform: VMwarePlatform.macos,
+        platformLabel: 'macOS',
+        fileName: 'VMware-Fusion-13.6.1.dmg',
+        fileSize: '650 MB',
+        fileSizeBytes: 681574400,
+        releaseDate: '2024-10-10',
+        lastUpdated: '2024-10-10',
+        sha256: 'fusion256',
+        md5: 'fusionmd5',
+        officialDownloadUrl: 'https://support.broadcom.com/fusion-url',
+      );
+
+      final completedItem = DownloadItem(
+        id: 'fusion-13-mac',
+        release: releaseCompleted,
+        destinationPath: '/Downloads/VMwareGet/VMware-Fusion-13.6.1.dmg',
+        status: DownloadStatus.completed,
+        verificationStatus: VerificationStatus.passed,
+        downloadedBytes: 681574400,
+        totalBytes: 681574400,
+        startedAt: DateTime(2026, 1, 1),
+        completedAt: DateTime(2026, 1, 1, 0, 5),
+        directDownloadUrl: 'https://cdn.broadcom.com/fusion-direct.dmg',
+      );
+
+      // Pre-populate SharedPreferences with existing download history
+      SharedPreferences.setMockInitialValues({
+        AppConstants.storageKeyDownloadHistory:
+            jsonEncode([completedItem.toJson()]),
+      });
+
+      // Construct DownloadProvider and wait for initialization
+      final provider = DownloadProvider();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(provider.allDownloads.length, equals(1));
+      expect(provider.completedCount, equals(1));
+      final loadedItem = provider.getItemForRelease('fusion-13-mac');
+      expect(loadedItem, isNotNull);
+      expect(loadedItem!.status, equals(DownloadStatus.completed));
+      expect(loadedItem.directDownloadUrl, equals('https://cdn.broadcom.com/fusion-direct.dmg'));
+
+      // Test resolveDownloadUrl
+      final resolvedUrl = await provider.resolveDownloadUrl(release: releaseCompleted);
+      expect(resolvedUrl, equals('https://cdn.broadcom.com/fusion-direct.dmg'));
+
+      // Test clearCompletedDownloads
+      await provider.clearCompletedDownloads();
+      expect(provider.completedCount, equals(0));
+      expect(provider.allDownloads.isEmpty, true);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(AppConstants.storageKeyDownloadHistory), equals('[]'));
     });
   });
 }

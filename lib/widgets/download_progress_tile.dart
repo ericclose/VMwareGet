@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/download_item.dart';
@@ -309,7 +310,51 @@ class DownloadProgressTile extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: l10n.copyDirectDownloadLink,
+                  icon: const Icon(Icons.link_rounded, size: 20),
+                  onPressed: () async {
+                    final scaffold = ScaffoldMessenger.of(context);
+                    scaffold.showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(l10n.generatingDownloadLink),
+                          ],
+                        ),
+                        duration: const Duration(milliseconds: 600),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+
+                    final url = await downloadProvider.resolveDownloadUrl(
+                      release: item.release,
+                      session: authSession,
+                    );
+
+                    await Clipboard.setData(ClipboardData(text: url));
+
+                    scaffold.hideCurrentSnackBar();
+                    scaffold.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.copyDirectDownloadLinkSuccess),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: l10n.deleteRemove,
                   icon: const Icon(Icons.delete_outline_rounded, size: 18),

@@ -484,7 +484,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeSubtitle =>
-      'The clean, native companion to authenticate, browse, and securely download official VMware Workstation Pro and Fusion releases.';
+      'Fast, clean companion to download and verify official VMware packages.';
 
   @override
   String get feature1Title => 'Official Broadcom Software Packages';
@@ -508,13 +508,40 @@ class AppLocalizationsEn extends AppLocalizations {
       'Native multi-connection Range chunking, pause/resume capability, and live metrics.';
 
   @override
+  String get feature1Pill => 'Official Releases';
+
+  @override
+  String get feature2Pill => 'Hash Verification';
+
+  @override
+  String get feature3Pill => 'Multi-threaded Speed';
+
+  @override
+  String get manualCookieGuideTitle => 'How to get Cookies?';
+
+  @override
+  String get manualCookieStep1 =>
+      '1. Log in to access.broadcom.com in your browser';
+
+  @override
+  String get manualCookieStep2 =>
+      '2. Press F12 ➔ Network tab ➔ Right-click any request ➔ \'Copy as cURL\' (or copy document.cookie in Console)';
+
+  @override
+  String get manualCookieStep3 =>
+      '3. Click \'Paste from Clipboard\' below; VMwareGet will auto-extract credentials and connect';
+
+  @override
+  String get openInBrowser => 'Open in Browser';
+
+  @override
   String get logInWithBroadcom => 'Log In with Broadcom';
 
   @override
   String get registerAccount => 'Register Account';
 
   @override
-  String get quickDemoAccess => 'Quick Demo Access';
+  String get quickDemoAccess => 'Explore without Login';
 
   @override
   String get langEnglish => 'English';

@@ -480,7 +480,7 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String get welcomeSubtitle =>
-      'Moderna kunulo por aŭtentigi, foliumi kaj sekure elŝuti oficialajn VMware-eldonojn.';
+      'Rapida kaj pura kunulo por oficialaj VMware-eldonoj.';
 
   @override
   String get feature1Title => 'Oficialaj Eldonoj';
@@ -504,13 +504,40 @@ class AppLocalizationsEo extends AppLocalizations {
       'Plurera elŝutado, paŭzo/rekomenco kaj realtempa rapideco.';
 
   @override
+  String get feature1Pill => 'Oficialaj Pakoj';
+
+  @override
+  String get feature2Pill => 'Hakaĵa Kontrolo';
+
+  @override
+  String get feature3Pill => 'Plurfadena Akcelo';
+
+  @override
+  String get manualCookieGuideTitle => 'Kiel akiri kuketojn?';
+
+  @override
+  String get manualCookieStep1 =>
+      '1. Ensalutu en access.broadcom.com en via retumilo';
+
+  @override
+  String get manualCookieStep2 =>
+      '2. Premu F12 ➔ Reto (Network) ➔ Dekstraklaku iun peton ➔ \'Kopii kiel cURL\'';
+
+  @override
+  String get manualCookieStep3 =>
+      '3. Alklaku \'Alglui el tondujo\' sube por aŭtomate importi';
+
+  @override
+  String get openInBrowser => 'Malfermi en Retumilo';
+
+  @override
   String get logInWithBroadcom => 'Ensaluti per Broadcom';
 
   @override
   String get registerAccount => 'Registri Konton';
 
   @override
-  String get quickDemoAccess => 'Ekzamena Reĝimo (Sen Ensaluto)';
+  String get quickDemoAccess => 'Ekzameni sen Ensaluto';
 
   @override
   String get langEnglish => 'English';

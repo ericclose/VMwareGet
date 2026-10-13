@@ -506,18 +506,85 @@ class _LoginDialogState extends State<LoginDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Step-by-step guidance card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.help_outline_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.manualCookieGuideTitle,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  l10n.manualCookieStep1,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11.5,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  l10n.manualCookieStep2,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11.5,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  l10n.manualCookieStep3,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11.5,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
                 icon: const Icon(Icons.content_paste_rounded, size: 14),
                 label: Text(l10n.pasteFromClipboard, style: const TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
                 onPressed: _pasteFromClipboard,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.open_in_browser_rounded, size: 14),
+                label: Text(l10n.openInBrowser, style: const TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                onPressed: () => authProvider.openBroadcomLoginPortal(),
               ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.copy_rounded, size: 14),

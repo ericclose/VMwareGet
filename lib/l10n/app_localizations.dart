@@ -1015,7 +1015,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'The clean, native companion to authenticate, browse, and securely download official VMware Workstation Pro and Fusion releases.'**
+  /// **'Fast, clean companion to download and verify official VMware packages.'**
   String get welcomeSubtitle;
 
   /// No description provided for @feature1Title.
@@ -1054,6 +1054,54 @@ abstract class AppLocalizations {
   /// **'Native multi-connection Range chunking, pause/resume capability, and live metrics.'**
   String get feature3Desc;
 
+  /// No description provided for @feature1Pill.
+  ///
+  /// In en, this message translates to:
+  /// **'Official Releases'**
+  String get feature1Pill;
+
+  /// No description provided for @feature2Pill.
+  ///
+  /// In en, this message translates to:
+  /// **'Hash Verification'**
+  String get feature2Pill;
+
+  /// No description provided for @feature3Pill.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-threaded Speed'**
+  String get feature3Pill;
+
+  /// No description provided for @manualCookieGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How to get Cookies?'**
+  String get manualCookieGuideTitle;
+
+  /// No description provided for @manualCookieStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Log in to access.broadcom.com in your browser'**
+  String get manualCookieStep1;
+
+  /// No description provided for @manualCookieStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Press F12 ➔ Network tab ➔ Right-click any request ➔ \'Copy as cURL\' (or copy document.cookie in Console)'**
+  String get manualCookieStep2;
+
+  /// No description provided for @manualCookieStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Click \'Paste from Clipboard\' below; VMwareGet will auto-extract credentials and connect'**
+  String get manualCookieStep3;
+
+  /// No description provided for @openInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Browser'**
+  String get openInBrowser;
+
   /// No description provided for @logInWithBroadcom.
   ///
   /// In en, this message translates to:
@@ -1069,7 +1117,7 @@ abstract class AppLocalizations {
   /// No description provided for @quickDemoAccess.
   ///
   /// In en, this message translates to:
-  /// **'Quick Demo Access'**
+  /// **'Explore without Login'**
   String get quickDemoAccess;
 
   /// No description provided for @langEnglish.

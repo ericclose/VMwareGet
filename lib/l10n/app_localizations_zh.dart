@@ -465,8 +465,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get welcomeTitle => '欢迎使用 VMwareGet';
 
   @override
-  String get welcomeSubtitle =>
-      '专为 macOS 与跨平台打造的官方分发助手，助您一键连接 Broadcom 渠道，高速下载并自动校验 VMware 安装包。';
+  String get welcomeSubtitle => '极简的 VMware 官方安装包高速下载与完整性校验工具';
 
   @override
   String get feature1Title => '官方软件渠道';
@@ -485,6 +484,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get feature3Desc => '原生切片并发传输、断点续传与精确速率耗时预测。';
+
+  @override
+  String get feature1Pill => '官方原包直链';
+
+  @override
+  String get feature2Pill => '哈希自动校验';
+
+  @override
+  String get feature3Pill => '多线程高速下载';
+
+  @override
+  String get manualCookieGuideTitle => '如何获取 Cookies？';
+
+  @override
+  String get manualCookieStep1 => '1. 浏览器访问并登录 access.broadcom.com';
+
+  @override
+  String get manualCookieStep2 =>
+      '2. 按 F12 打开开发者工具 ➔ 网络(Network) ➔ 右键任意请求选择「复制为 cURL」（或在控制台输入 document.cookie 复制）';
+
+  @override
+  String get manualCookieStep3 => '3. 点击下方「从剪贴板粘贴」，程序将自动解析 Cookie 与邮箱并接入会话';
+
+  @override
+  String get openInBrowser => '在浏览器中打开';
 
   @override
   String get logInWithBroadcom => '登录 Broadcom 账户';

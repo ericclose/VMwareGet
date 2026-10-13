@@ -12,34 +12,78 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
+import android.util.Log
+
 class MainActivity : FlutterActivity() {
+    private val tag = "VMwareGet-Native"
     private val cookieChannel = "io.github.vmwareget/cookies"
     private val platformChannel = "io.github.vmwareget/platform"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Ensure CookieManager is accepting cookies
+        try {
+            CookieManager.getInstance().setAcceptCookie(true)
+            Log.i(tag, "CookieManager.getInstance().setAcceptCookie(true) initialized")
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to enable CookieManager acceptCookie: ${e.localizedMessage}")
+        }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, cookieChannel).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getCookies" -> {
                     val url = call.argument<String>("url")
                     if (url != null) {
                         try {
-                            val cookies = CookieManager.getInstance().getCookie(url)
-                            result.success(cookies ?: "")
+                            CookieManager.getInstance().flush()
+                            val cookies = CookieManager.getInstance().getCookie(url) ?: ""
+                            val hasJSession = cookies.contains("JSESSIONID")
+                            val count = if (cookies.isNotEmpty()) cookies.split(";").size else 0
+                            Log.i(tag, "getCookies for [$url]: count=$count, hasJSESSIONID=$hasJSession, rawLength=${cookies.length}")
+                            result.success(cookies)
                         } catch (e: Exception) {
+                            Log.e(tag, "getCookies error for [$url]: ${e.localizedMessage}", e)
                             result.error("COOKIE_ERROR", e.localizedMessage, null)
                         }
                     } else {
                         result.error("INVALID_ARGS", "url parameter is required", null)
                     }
                 }
+                "getAllCookies" -> {
+                    try {
+                        CookieManager.getInstance().flush()
+                        val cm = CookieManager.getInstance()
+                        val supportCookies = cm.getCookie("https://support.broadcom.com") ?: ""
+                        val accessCookies = cm.getCookie("https://access.broadcom.com") ?: ""
+                        val rootCookies = cm.getCookie("https://broadcom.com") ?: ""
+
+                        val cookieList = mutableListOf<String>()
+                        if (supportCookies.isNotEmpty()) cookieList.add(supportCookies)
+                        if (accessCookies.isNotEmpty()) cookieList.add(accessCookies)
+                        if (rootCookies.isNotEmpty()) cookieList.add(rootCookies)
+
+                        val combined = cookieList.joinToString("; ")
+                        Log.i(
+                            tag,
+                            "getAllCookies: supportLen=${supportCookies.length}, accessLen=${accessCookies.length}, rootLen=${rootCookies.length}, combinedLen=${combined.length}, hasJSESSIONID=${combined.contains("JSESSIONID")}"
+                        )
+                        result.success(combined)
+                    } catch (e: Exception) {
+                        Log.e(tag, "getAllCookies error: ${e.localizedMessage}", e)
+                        result.error("COOKIE_ERROR", e.localizedMessage, null)
+                    }
+                }
                 "clearCookies" -> {
                     try {
+                        Log.i(tag, "clearCookies requested")
                         CookieManager.getInstance().removeAllCookies { success ->
                             CookieManager.getInstance().flush()
+                            Log.i(tag, "clearCookies completed: success=$success")
                             result.success(success)
                         }
                     } catch (e: Exception) {
+                        Log.e(tag, "clearCookies error: ${e.localizedMessage}", e)
                         result.error("COOKIE_ERROR", e.localizedMessage, null)
                     }
                 }

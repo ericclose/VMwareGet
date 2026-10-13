@@ -18,6 +18,17 @@ class AndroidCookieService {
     }
   }
 
+  /// Fetches combined cookies across all Broadcom portals from Android's android.webkit.CookieManager
+  static Future<String?> getAllCookies() async {
+    if (kIsWeb || !Platform.isAndroid) return null;
+    try {
+      final result = await _channel.invokeMethod<String>('getAllCookies');
+      return (result != null && result.isNotEmpty) ? result : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Clears all cookies from Android's android.webkit.CookieManager
   static Future<bool> clearCookies() async {
     if (kIsWeb || !Platform.isAndroid) return false;

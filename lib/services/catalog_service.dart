@@ -170,6 +170,8 @@ class CatalogService {
     final List<VMwareReleaseItem> familyItems = [];
     final familySw = Stopwatch()..start();
 
+    String currentCsrf = csrfHeader;
+
     try {
       DiagnosticService.instance.http(
         'Catalog',
@@ -189,7 +191,7 @@ class CatalogService {
         options: Options(
           headers: {
             'Cookie': cookieHeader,
-            'x-csrf-token': csrfHeader,
+            'x-csrf-token': currentCsrf,
             'Origin': 'https://support.broadcom.com',
             'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
             'Accept': 'application/json, text/plain, */*',
@@ -244,11 +246,10 @@ class CatalogService {
               },
             ),
           );
-          String activeCsrf = csrfHeader;
           final match = RegExp(r'''Liferay\.authToken\s*=\s*['"]([^'"]+)['"]''').firstMatch(pageResp.data.toString());
           if (match != null) {
-            activeCsrf = match.group(1)!;
-            DiagnosticService.instance.info('Catalog', 'Extracted fresh Liferay.authToken: $activeCsrf');
+            currentCsrf = match.group(1)!;
+            DiagnosticService.instance.info('Catalog', 'Extracted fresh dynamic Liferay.authToken: $currentCsrf');
           }
           final retryResp = await _dio.post(
             'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',
@@ -261,7 +262,7 @@ class CatalogService {
             options: Options(
               headers: {
                 'Cookie': cookieHeader,
-                'x-csrf-token': activeCsrf,
+                'x-csrf-token': currentCsrf,
                 'Origin': 'https://support.broadcom.com',
                 'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
                 'Accept': 'application/json, text/plain, */*',
@@ -346,7 +347,7 @@ class CatalogService {
           subFamily: subFamily,
           target: target,
           cookieHeader: cookieHeader,
-          csrfHeader: csrfHeader,
+          csrfHeader: currentCsrf,
         )));
         for (final items in batchResults) {
           familyItems.addAll(items);

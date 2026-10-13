@@ -154,10 +154,18 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
           let name = '';
           const nameEl = document.querySelector('.user-full-name, .user-name, [data-user-name]');
           if (nameEl) name = nameEl.innerText.trim();
+          let csrf = (window.Liferay && window.Liferay.authToken) ? window.Liferay.authToken : '';
+          if (!csrf && window.themeDisplay && typeof window.themeDisplay.getAuthToken === 'function') {
+            csrf = window.themeDisplay.getAuthToken();
+          }
+          if (!csrf) {
+            const m = document.documentElement.innerHTML.match(/Liferay\\.authToken\\s*=\\s*['"]([a-zA-Z0-9_-]+)['"]/);
+            if (m) csrf = m[1];
+          }
           return JSON.stringify({
             hasProducts: text.includes('VMware Workstation Pro') || text.includes('VMware Fusion') || text.includes('Product Download'),
             userName: name,
-            csrf: (window.Liferay && window.Liferay.authToken) ? window.Liferay.authToken : ''
+            csrf: csrf
           });
         })()
       ''');

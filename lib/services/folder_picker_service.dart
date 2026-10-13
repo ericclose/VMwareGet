@@ -1,7 +1,12 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 
 class FolderPickerService {
+  /// Test-only hook to mock picked directory without OS dialogs
+  @visibleForTesting
+  static String? mockDirectoryForTesting;
+
   /// Prompts the user to select a directory using native OS dialogs.
   /// Works across Windows (Win32 IFileDialog), Android (SAF tree picker),
   /// macOS (NSOpenPanel), and Linux (GTK / portal).
@@ -9,6 +14,13 @@ class FolderPickerService {
     String? prompt,
     String? initialDirectory,
   }) async {
+    if (mockDirectoryForTesting != null) {
+      return mockDirectoryForTesting;
+    }
+    // Never spawn blocking modal OS dialogs in automated test environments / CI
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return null;
+    }
     // 1. Primary: Native file_picker plugin (supports Windows, Android, macOS, Linux)
     try {
       final selected = await FilePicker.getDirectoryPath(

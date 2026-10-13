@@ -176,8 +176,15 @@ void main() {
     });
 
     test('FolderPickerService.pickDirectory handles environment safely without uncaught exceptions', () async {
+      // In automated test runner, safely avoids spawning modal OS dialogs
       final result = await FolderPickerService.pickDirectory(prompt: 'Test Directory');
-      expect(result == null || result.isNotEmpty, isTrue);
+      expect(result, isNull);
+
+      // Verify mocking hook for test suites
+      FolderPickerService.mockDirectoryForTesting = '/test/mock/downloads';
+      final mocked = await FolderPickerService.pickDirectory(prompt: 'Test Directory');
+      expect(mocked, equals('/test/mock/downloads'));
+      FolderPickerService.mockDirectoryForTesting = null;
     });
   });
 }

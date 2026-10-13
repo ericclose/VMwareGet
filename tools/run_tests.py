@@ -2,7 +2,7 @@
 """
 VMwareGet Visual Test Runner
 Runs Flutter unit & widget tests and formats the output into a modern,
-visually intuitive dashboard with category grouping, status badges, and metrics.
+visually intuitive dashboard with pixel-perfect category alignment and metrics.
 """
 
 import subprocess
@@ -10,6 +10,8 @@ import json
 import time
 import sys
 import os
+import re
+import unicodedata
 
 # ANSI Color Codes
 RESET = "\033[0m"
@@ -27,11 +29,50 @@ GRAY = "\033[38;5;244m"
 BG_GREEN = "\033[48;5;28m\033[38;5;255m"
 BG_RED = "\033[48;5;124m\033[38;5;255m"
 
+ANSI_REGEX = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+
+def strip_ansi(s: str) -> str:
+    return ANSI_REGEX.sub('', s)
+
+
+def char_width(ch: str) -> int:
+    # Zero-width variation selectors
+    if ch in '\uFE0E\uFE0F':
+        return 0
+    # Wide characters (East Asian Wide / Fullwidth)
+    if unicodedata.east_asian_width(ch) in ('W', 'F'):
+        return 2
+    # Emojis and miscellaneous symbols that render as 2 cells
+    code = ord(ch)
+    if 0x1F300 <= code <= 0x1FAFF or 0x2600 <= code <= 0x27BF:
+        return 2
+    return 1
+
+
+def visible_width(s: str) -> int:
+    clean = strip_ansi(s)
+    return sum(char_width(c) for c in clean)
+
+
+def pad_visible(s: str, width: int, align: str = 'left') -> str:
+    vw = visible_width(s)
+    pad = max(0, width - vw)
+    if align == 'left':
+        return s + (' ' * pad)
+    elif align == 'right':
+        return (' ' * pad) + s
+    else:  # center
+        left = pad // 2
+        right = pad - left
+        return (' ' * left) + s + (' ' * right)
+
+
 SUITE_CATEGORIES = {
     'auth_service_test.dart': ('🔐 Authentication & Session Security', CYAN),
     'catalog_service_test.dart': ('📦 Product Catalog & Dynamic Sync', BLUE),
     'download_provider_dir_test.dart': ('⚡ Multi-Threaded Download Engine', YELLOW),
-    'checksum_service_test.dart': ('🛡️  Cryptographic Checksum Verification', GREEN),
+    'checksum_service_test.dart': ('🛡️ Cryptographic Checksum Verification', GREEN),
     'locale_test.dart': ('🌐 Internationalization & Localization (I18n)', MAGENTA),
     'diagnostic_service_test.dart': ('🩺 Diagnostics & Logging Buffer', BLUE),
     'json_utils_test.dart': ('🧩 Data Utilities & JSON Serialization', GRAY),
@@ -40,7 +81,7 @@ SUITE_CATEGORIES = {
 
 
 def print_banner():
-    width = 76
+    width = 82
     print(f"\n{BOLD}{CYAN}╔{'═' * (width - 2)}╗{RESET}")
     title = "VMwareGet Automated Test Suite"
     subtitle = "Live Flutter Verification & Quality Assurance"
@@ -167,43 +208,64 @@ def run_tests():
 
     pass_rate = (total_passed / total_tests * 100) if total_tests > 0 else 0.0
 
+    # Layout Column Dimensions
+    col1_w = 48
+    col2_w = 7
+    col3_w = 7
+    col4_w = 7
+    total_inner = col1_w + col2_w + col3_w + col4_w + 9  # 78 cells between outer borders
+
     # Print Summary Table
     print("\n")
-    box_w = 78
-    print(f"{BOLD}{GRAY}┌{'─' * (box_w - 2)}┐{RESET}")
-    header_title = "TEST EXECUTION SUMMARY DASHBOARD"
-    print(f"{BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{header_title.center(box_w - 4)}{RESET} {BOLD}{GRAY}│{RESET}")
-    print(f"{BOLD}{GRAY}├{'─' * 52}┬{'─' * 7}┬{'─' * 7}┬{'─' * 7}┤{RESET}")
-    print(f"{BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{'Test Suite Category'.ljust(50)}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{'Total'.rjust(5)}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{GREEN}{'Pass'.rjust(5)}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{RED}{'Fail'.rjust(5)}{RESET} {BOLD}{GRAY}│{RESET}")
-    print(f"{BOLD}{GRAY}├{'─' * 52}┼{'─' * 7}┼{'─' * 7}┼{'─' * 7}┤{RESET}")
+    top_border = f"{BOLD}{GRAY}┌{'─' * (total_inner + 2)}┐{RESET}"
+    div_header = f"{BOLD}{GRAY}├{'─' * (col1_w + 2)}┬{'─' * (col2_w + 2)}┬{'─' * (col3_w + 2)}┬{'─' * (col4_w + 2)}┤{RESET}"
+    div_cross = f"{BOLD}{GRAY}├{'─' * (col1_w + 2)}┼{'─' * (col2_w + 2)}┼{'─' * (col3_w + 2)}┼{'─' * (col4_w + 2)}┤{RESET}"
+    div_mid = f"{BOLD}{GRAY}├{'─' * (total_inner + 2)}┤{RESET}"
+    bot_border = f"{BOLD}{GRAY}└{'─' * (total_inner + 2)}┘{RESET}"
+
+    print(top_border)
+    dash_title = pad_visible("TEST EXECUTION SUMMARY DASHBOARD", total_inner, 'center')
+    print(f"{BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{dash_title}{RESET} {BOLD}{GRAY}│{RESET}")
+    print(div_header)
+
+    h1 = pad_visible("Test Suite Category", col1_w, 'left')
+    h2 = pad_visible("Total", col2_w, 'right')
+    h3 = pad_visible("Pass", col3_w, 'right')
+    h4 = pad_visible("Fail", col4_w, 'right')
+    print(f"{BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{h1}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{WHITE}{h2}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{GREEN}{h3}{RESET} {BOLD}{GRAY}│{RESET} {BOLD}{RED}{h4}{RESET} {BOLD}{GRAY}│{RESET}")
+    print(div_cross)
 
     for fname, stats in suite_stats.items():
         if stats['total'] == 0:
             continue
         meta = SUITE_CATEGORIES.get(fname, (f'📄 {fname}', WHITE))
         category_title = meta[0]
-        # truncate title if too long
-        display_title = category_title if len(category_title) <= 50 else category_title[:47] + '...'
 
-        tot_str = str(stats['total']).rjust(5)
-        pas_str = str(stats['passed']).rjust(5)
-        fai_str = str(stats['failed']).rjust(5)
+        c1 = pad_visible(category_title, col1_w, 'left')
+        c2 = pad_visible(str(stats['total']), col2_w, 'right')
+        c3 = pad_visible(str(stats['passed']), col3_w, 'right')
+        c4 = pad_visible(str(stats['failed']), col4_w, 'right')
 
         fail_color = RED if stats['failed'] > 0 else GRAY
-        print(f"{BOLD}{GRAY}│{RESET} {WHITE}{display_title.ljust(50)}{RESET} {BOLD}{GRAY}│{RESET} {tot_str} {BOLD}{GRAY}│{RESET} {GREEN}{pas_str}{RESET} {BOLD}{GRAY}│{RESET} {fail_color}{fai_str}{RESET} {BOLD}{GRAY}│{RESET}")
+        print(f"{BOLD}{GRAY}│{RESET} {WHITE}{c1}{RESET} {BOLD}{GRAY}│{RESET} {c2} {BOLD}{GRAY}│{RESET} {GREEN}{c3}{RESET} {BOLD}{GRAY}│{RESET} {fail_color}{c4}{RESET} {BOLD}{GRAY}│{RESET}")
 
-    print(f"{BOLD}{GRAY}├{'─' * 52}┴{'─' * 7}┴{'─' * 7}┴{'─' * 7}┤{RESET}")
+    print(div_mid)
 
-    # Overall Verdict
+    # Overall Verdict Line
     if total_failed == 0 and total_tests > 0:
         verdict = f"{BG_GREEN}  ALL {total_passed} TESTS PASSED  {RESET} {BOLD}{GREEN}✓ 100% Quality Gate Satisfied{RESET}"
     else:
         verdict = f"{BG_RED}  {total_failed} TESTS FAILED  {RESET} {BOLD}{RED}✖ Needs Attention{RESET}"
 
     metrics = f"Passed: {BOLD}{GREEN}{total_passed}{RESET}  Failed: {BOLD}{RED}{total_failed}{RESET}  Rate: {BOLD}{CYAN}{pass_rate:.1f}%{RESET}  Time: {BOLD}{YELLOW}{total_elapsed:.2f}s{RESET}"
-    print(f"{BOLD}{GRAY}│{RESET} {verdict.ljust(box_w + 14)} {BOLD}{GRAY}│{RESET}")
-    print(f"{BOLD}{GRAY}│{RESET} {metrics.ljust(box_w + 30)} {BOLD}{GRAY}│{RESET}")
-    print(f"{BOLD}{GRAY}└{'─' * (box_w - 2)}┘{RESET}\n")
+
+    line_verdict = pad_visible(verdict, total_inner, 'left')
+    line_metrics = pad_visible(metrics, total_inner, 'left')
+
+    print(f"{BOLD}{GRAY}│{RESET} {line_verdict} {BOLD}{GRAY}│{RESET}")
+    print(f"{BOLD}{GRAY}│{RESET} {line_metrics} {BOLD}{GRAY}│{RESET}")
+    print(bot_border)
+    print("\n")
 
     return 0 if total_failed == 0 else 1
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/download_provider.dart';
@@ -72,6 +73,29 @@ class DownloadsView extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.folder_open_rounded, size: 20),
+                  tooltip: l10n.openInFinderOrExplorer,
+                  onPressed: () async {
+                    final success =
+                        await downloadProvider.openDownloadDirectory();
+                    if (!success && context.mounted) {
+                      final dir = downloadProvider.downloadDirectory ??
+                          downloadProvider.defaultSystemDownloadDir;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(dir),
+                          action: SnackBarAction(
+                            label: 'Copy',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: dir));
+                            },
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ],
             ),

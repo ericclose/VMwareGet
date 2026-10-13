@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vmwareget/models/download_item.dart';
 import 'package:vmwareget/models/vmware_product.dart';
 import 'package:vmwareget/providers/download_provider.dart';
+import 'package:vmwareget/services/folder_picker_service.dart';
 import 'package:vmwareget/utils/constants.dart';
 
 void main() {
@@ -165,6 +166,18 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString(AppConstants.storageKeyDownloadHistory), equals('[]'));
+    });
+
+    test('openDownloadDirectory executes safely and returns boolean result', () async {
+      final provider = DownloadProvider();
+      await Future.delayed(const Duration(milliseconds: 50));
+      final result = await provider.openDownloadDirectory();
+      expect(result, isA<bool>());
+    });
+
+    test('FolderPickerService.pickDirectory handles environment safely without uncaught exceptions', () async {
+      final result = await FolderPickerService.pickDirectory(prompt: 'Test Directory');
+      expect(result == null || result.isNotEmpty, isTrue);
     });
   });
 }

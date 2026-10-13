@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
@@ -154,26 +155,34 @@ class DownloadProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> openDownloadDirectory() async {
+  Future<bool> openDownloadDirectory() async {
     final dir = _customDownloadDir ?? _defaultSystemDownloadDir;
     if (dir.isNotEmpty) {
       final directory = Directory(dir);
       if (!await directory.exists()) {
-        await directory.create(recursive: true);
+        try {
+          await directory.create(recursive: true);
+        } catch (_) {}
       }
       try {
         if (Platform.isMacOS) {
-          await Process.run('open', [dir]);
-          return;
+          final res = await Process.run('open', [dir]);
+          return res.exitCode == 0;
         } else if (Platform.isWindows) {
-          await Process.run('explorer.exe', [dir]);
-          return;
+          final res = await Process.run('explorer.exe', [dir]);
+          return res.exitCode == 0;
         } else if (Platform.isLinux) {
-          await Process.run('xdg-open', [dir]);
-          return;
+          final res = await Process.run('xdg-open', [dir]);
+          return res.exitCode == 0;
+        } else if (Platform.isAndroid) {
+          const channel = MethodChannel('io.github.vmwareget/platform');
+          final result =
+              await channel.invokeMethod<bool>('openDirectory', {'path': dir});
+          return result ?? false;
         }
       } catch (_) {}
     }
+    return false;
   }
 
   DownloadItem? getItemForRelease(String releaseId) {

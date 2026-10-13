@@ -299,7 +299,25 @@ class SettingsView extends StatelessWidget {
                                 ? l10n.showInFinder
                                 : l10n.openInFinderOrExplorer,
                           ),
-                          onPressed: () => downloadProvider.openDownloadDirectory(),
+                          onPressed: () async {
+                            final success =
+                                await downloadProvider.openDownloadDirectory();
+                            if (!success && context.mounted) {
+                              final dir = downloadProvider.downloadDirectory ??
+                                  downloadProvider.defaultSystemDownloadDir;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(dir),
+                                  action: SnackBarAction(
+                                    label: 'Copy',
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: dir));
+                                    },
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                         ),
                         if (downloadProvider.downloadDirectory !=
                             downloadProvider.defaultSystemDownloadDir)

@@ -246,8 +246,7 @@ class AuthService {
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/json;charset=UTF-8',
             'Origin': 'https://support.broadcom.com',
-            'Referer':
-                'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true',
+            'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
             'Accept-Language':
                 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
           },

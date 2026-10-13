@@ -191,8 +191,7 @@ class CatalogService {
             'Cookie': cookieHeader,
             'x-csrf-token': csrfHeader,
             'Origin': 'https://support.broadcom.com',
-            'Referer':
-                'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
+            'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language':
                 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
@@ -264,8 +263,7 @@ class CatalogService {
                 'Cookie': cookieHeader,
                 'x-csrf-token': activeCsrf,
                 'Origin': 'https://support.broadcom.com',
-                'Referer':
-                    'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
+                'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
                 'Accept': 'application/json, text/plain, */*',
               },
             ),
@@ -381,8 +379,7 @@ class CatalogService {
   }) async {
     final List<VMwareReleaseItem> items = [];
     final sw = Stopwatch()..start();
-    final refererUrl =
-        'https://support.broadcom.com/group/ecx/productfiles?subFamily=${Uri.encodeComponent(subFamily)}&displayGroup=${Uri.encodeComponent(target.displayGroup)}&release=${target.releaseVer}&os=&servicePk=${target.servicePk}&language=EN&freeDownloads=true';
+    const refererUrl = 'https://support.broadcom.com/group/ecx/productfiles';
 
     try {
       final filesResp = await _dio.post(

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 import '../services/android_cookie_service.dart';
 import '../services/auth_service.dart';
 import '../services/diagnostic_service.dart';
@@ -21,7 +22,8 @@ class MobileWebViewLoginScreen extends StatefulWidget {
 }
 
 class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
-  late final WebViewController _controller;
+  late final AndroidWebViewController _controller;
+  late final PlatformWebViewWidget _webViewWidget;
   Timer? _pollTimer;
   double _progress = 0.0;
   String _status = 'Initializing secure Broadcom login...';
@@ -34,40 +36,52 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
   }
 
   void _initWebView() {
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(
-        'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
-      )
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (url) {
-            if (mounted) {
-              setState(() {
-                _status = 'Loading Broadcom portal...';
-                _progress = 0.15;
-              });
-            }
-            widget.onStatusUpdate?.call('Loading page: $url');
-          },
-          onProgress: (progress) {
-            if (mounted) {
-              setState(() {
-                _progress = progress / 100.0;
-              });
-            }
-          },
-          onPageFinished: (url) {
-            if (mounted) {
-              setState(() {
-                _progress = 1.0;
-              });
-            }
-            _checkLoginState(url);
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(AppConstants.broadcomLoginUrl));
+    _controller = AndroidWebViewController(
+      AndroidWebViewControllerCreationParams(),
+    );
+
+    final delegate = AndroidNavigationDelegate(
+      AndroidNavigationDelegateCreationParams.fromPlatformNavigationDelegateCreationParams(
+        const PlatformNavigationDelegateCreationParams(),
+      ),
+    );
+    delegate.setOnPageStarted((url) {
+      if (mounted) {
+        setState(() {
+          _status = 'Loading Broadcom portal...';
+          _progress = 0.15;
+        });
+      }
+      widget.onStatusUpdate?.call('Loading page: $url');
+    });
+    delegate.setOnProgress((progress) {
+      if (mounted) {
+        setState(() {
+          _progress = progress / 100.0;
+        });
+      }
+    });
+    delegate.setOnPageFinished((url) {
+      if (mounted) {
+        setState(() {
+          _progress = 1.0;
+        });
+      }
+      _checkLoginState(url);
+    });
+
+    _controller.setPlatformNavigationDelegate(delegate);
+    _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    _controller.setUserAgent(
+      'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+    );
+    _controller.loadRequest(
+      LoadRequestParams(uri: Uri.parse(AppConstants.broadcomLoginUrl)),
+    );
+
+    _webViewWidget = AndroidWebViewWidget(
+      AndroidWebViewWidgetCreationParams(controller: _controller),
+    );
 
     // Poll periodically in case page undergoes SPA or background token transitions
     _pollTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
@@ -250,7 +264,7 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
         ),
       ),
       body: SafeArea(
-        child: WebViewWidget(controller: _controller),
+        child: _webViewWidget.build(context),
       ),
     );
   }

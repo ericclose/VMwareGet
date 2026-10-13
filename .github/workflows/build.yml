@@ -41,21 +41,12 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build macOS Release
+      - name: Build and Package macOS (Parity with ./build.sh)
         run: |
-          flutter config --enable-macos-desktop
-          flutter build macos --release
-
-      - name: Package into DMG
-        run: |
+          chmod +x build.sh scripts/*.sh
+          ./build.sh
           mkdir -p dist
-          APP_PATH="build/macos/Build/Products/Release/VMwareGet.app"
-          if [ -d "$APP_PATH" ]; then
-            hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "$APP_PATH" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
-          else
-            echo "Packaging release directory..."
-            hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "build/macos/Build/Products/Release" -ov -format UDZO "dist/${{ env.APP_NAME }}-macOS.dmg"
-          fi
+          cp VMwareGet-macOS.dmg "dist/${{ env.APP_NAME }}-macOS.dmg"
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v7

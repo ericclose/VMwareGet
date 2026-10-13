@@ -40,8 +40,9 @@ if diskutil image -h >/dev/null 2>&1; then
     fi
   fi
 
-  echo "==> Configuring Finder window layout and positions on $MOUNT_POINT..."
-  osascript <<APPLESCRIPT || true
+  if [ -z "$CI" ] && [ -z "$GITHUB_ACTIONS" ]; then
+    echo "==> Configuring Finder window layout and positions on $MOUNT_POINT..."
+    osascript <<APPLESCRIPT || true
 tell application "Finder"
     tell disk "$VOL_NAME"
         open
@@ -65,6 +66,9 @@ tell application "Finder"
     end tell
 end tell
 APPLESCRIPT
+  else
+    echo "==> CI environment detected: skipping Finder GUI visual positioning..."
+  fi
 
   echo "==> Finalizing and detaching temporary disk image..."
   sync
@@ -97,12 +101,9 @@ else
     actual_mount="$MOUNT_POINT"
   fi
 
-  echo "==> Configuring Finder window layout and positions on $actual_mount..."
-  if [ -f "$actual_mount/.VolumeIcon.icns" ] && command -v SetFile >/dev/null 2>&1; then
-    SetFile -a C "$actual_mount" || true
-  fi
-
-  osascript <<APPLESCRIPT || true
+  if [ -z "$CI" ] && [ -z "$GITHUB_ACTIONS" ]; then
+    echo "==> Configuring Finder window layout and positions on $actual_mount..."
+    osascript <<APPLESCRIPT || true
 tell application "Finder"
     tell disk "$VOL_NAME"
         open
@@ -126,6 +127,9 @@ tell application "Finder"
     end tell
 end tell
 APPLESCRIPT
+  else
+    echo "==> CI environment detected: skipping Finder GUI visual positioning..."
+  fi
 
   echo "==> Finalizing and detaching temporary disk image..."
   sync

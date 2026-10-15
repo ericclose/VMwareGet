@@ -36,7 +36,10 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#MyAppOutputDir}
-OutputBaseFilename=VMwareGet-Setup
+#ifndef MyOutputBaseFilename
+  #define MyOutputBaseFilename "VMwareGet-windows-x64-setup"
+#endif
+OutputBaseFilename={#MyOutputBaseFilename}
 SetupIconFile={#MyAppIconFile}
 Compression=lzma2/ultra64
 SolidCompression=yes

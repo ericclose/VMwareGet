@@ -3,7 +3,13 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="$PROJECT_ROOT/build/macos/Build/Products/Release/VMwareGet.app"
-DMG_OUTPUT="$PROJECT_ROOT/VMwareGet-macOS.dmg"
+RAW_ARCH="$(uname -m)"
+case "$RAW_ARCH" in
+  x86_64|amd64) ARCH="x64" ;;
+  arm64|aarch64) ARCH="arm64" ;;
+  *) ARCH="$RAW_ARCH" ;;
+esac
+DMG_OUTPUT="${1:-$PROJECT_ROOT/VMwareGet-macos-${ARCH}.dmg}"
 VOL_NAME="VMwareGet"
 STAGING_DIR="$PROJECT_ROOT/build/dmg_staging"
 TEMP_DMG="$PROJECT_ROOT/build/temp_rw.dmg"

@@ -16,11 +16,19 @@ env:
 
 jobs:
   # ============================================================================
-  # 1. macOS Build (.dmg)
+  # 1. macOS Build (.dmg & .zip) - arm64 & x64
   # ============================================================================
   build-macos:
-    name: Build macOS (.dmg)
-    runs-on: macos-latest
+    name: Build macOS (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -41,25 +49,34 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build and Package macOS (Parity with ./build.sh)
+      - name: Build and Package macOS (${{ matrix.arch }})
         run: |
           chmod +x build.sh scripts/*.sh
           ./build.sh
           mkdir -p dist
-          cp VMwareGet-macOS.dmg "dist/${{ env.APP_NAME }}-macOS.dmg"
+          cp "VMwareGet-macos-${{ matrix.arch }}.dmg" "dist/VMwareGet-macos-${{ matrix.arch }}.dmg"
+          cp "VMwareGet-macos-${{ matrix.arch }}.zip" "dist/VMwareGet-macos-${{ matrix.arch }}.zip"
 
-      - name: Upload macOS Artifact
+      - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: macos-dmg
-          path: dist/${{ env.APP_NAME }}-macOS.dmg
+          name: macos-${{ matrix.arch }}
+          path: |
+            dist/VMwareGet-macos-${{ matrix.arch }}.dmg
+            dist/VMwareGet-macos-${{ matrix.arch }}.zip
 
   # ============================================================================
-  # 2. Windows Build (.exe)
+  # 2. Windows Build (.exe & .zip) - x64
   # ============================================================================
   build-windows:
-    name: Build Windows (.exe)
-    runs-on: windows-latest
+    name: Build Windows (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -91,7 +108,7 @@ jobs:
           choco install innosetup -y --no-progress
           echo "${env:ProgramFiles(x86)}\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Build Windows Setup Installer (.exe)
+      - name: Build Windows Setup Installer (.exe & .zip)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
@@ -106,24 +123,40 @@ jobs:
           }
 
           $iconPath = "$PWD\windows\runner\resources\app_icon.ico"
-          Write-Host "Compiling Inno Setup installer with version $tagVersion..."
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$tagVersion" "/DMyAppSourceDir=$releasePath" "/DMyAppOutputDir=$distPath" "/DMyAppIconFile=$iconPath" windows\installer\vmwareget.iss
+          $baseName = "VMwareGet-windows-${{ matrix.arch }}-setup"
+          Write-Host "Compiling Inno Setup installer: $baseName with version $tagVersion..."
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$tagVersion" "/DMyAppSourceDir=$releasePath" "/DMyAppOutputDir=$distPath" "/DMyAppIconFile=$iconPath" "/DMyOutputBaseFilename=$baseName" windows\installer\vmwareget.iss
 
-          Write-Host "Verifying generated installer:"
-          Get-ChildItem -Path dist\*.exe | Select-Object Name, Length
+          Write-Host "Creating Windows Portable ZIP archive..."
+          Compress-Archive -Path "$releasePath\*" -DestinationPath "$distPath\VMwareGet-windows-${{ matrix.arch }}.zip" -Force
+
+          Write-Host "Verifying generated Windows packages:"
+          Get-ChildItem -Path dist\* | Select-Object Name, Length
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: windows-binaries
-          path: dist/${{ env.APP_NAME }}-Setup.exe
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/VMwareGet-windows-${{ matrix.arch }}-setup.exe
+            dist/VMwareGet-windows-${{ matrix.arch }}.zip
 
   # ============================================================================
-  # 3. Linux Debian-based Build (.deb)
+  # 3. Linux Debian-based Build (.deb & .tar.gz) - x64 & arm64
   # ============================================================================
   build-linux-deb:
-    name: Build Linux Debian (.deb)
-    runs-on: ubuntu-latest
+    name: Build Linux Debian (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x64
+            deb_arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            deb_arch: arm64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -155,7 +188,7 @@ jobs:
           flutter config --enable-linux-desktop
           flutter build linux --release
 
-      - name: Package .deb package
+      - name: Package .deb and .tar.gz package
         run: |
           mkdir -p deb-pkg/DEBIAN
           mkdir -p deb-pkg/usr/bin
@@ -164,7 +197,7 @@ jobs:
           mkdir -p dist
 
           # Copy compiled bundle
-          cp -r build/linux/x64/release/bundle/* deb-pkg/usr/lib/${{ env.APP_NAME }}/
+          cp -r build/linux/*/release/bundle/* deb-pkg/usr/lib/${{ env.APP_NAME }}/
 
           # Create wrapper launcher script
           cat << 'EOF' > deb-pkg/usr/bin/vmwareget
@@ -192,27 +225,40 @@ jobs:
           Version: ${VERSION_TAG}
           Section: utils
           Priority: optional
-          Architecture: amd64
+          Architecture: ${{ matrix.deb_arch }}
           Maintainer: VMwareGet Contributors <dev@vmwareget.internal>
           Description: VMware Download & Account Companion App (Cross-Platform)
            Streamlined interface for authenticating with Broadcom ecosystem and downloading
-           official packages for VMware Workstation Pro and Fusion with cryptographic verification.
+           installation packages for VMware Workstation Pro and Fusion with cryptographic verification.
           EOF
 
-          dpkg-deb --build deb-pkg "dist/${{ env.APP_NAME }}-Linux-amd64.deb"
+          dpkg-deb --build deb-pkg "dist/VMwareGet-linux-${{ matrix.arch }}.deb"
+          tar -czf "dist/VMwareGet-linux-${{ matrix.arch }}.tar.gz" -C deb-pkg/usr/lib/${{ env.APP_NAME }} .
 
       - name: Upload Debian Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: linux-deb
-          path: dist/${{ env.APP_NAME }}-Linux-amd64.deb
+          name: linux-deb-${{ matrix.arch }}
+          path: |
+            dist/VMwareGet-linux-${{ matrix.arch }}.deb
+            dist/VMwareGet-linux-${{ matrix.arch }}.tar.gz
 
   # ============================================================================
-  # 4. Linux Fedora-based Build (.rpm)
+  # 4. Linux Fedora-based Build (.rpm) - x64 & arm64
   # ============================================================================
   build-linux-rpm:
-    name: Build Linux Fedora (.rpm)
-    runs-on: ubuntu-latest
+    name: Build Linux Fedora (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x64
+            rpm_target: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            rpm_target: aarch64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -247,19 +293,19 @@ jobs:
           # Structure RPM buildroot
           RPM_ROOT="$HOME/rpmbuild"
           mkdir -p "$RPM_ROOT"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin"
-          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/lib/${{ env.APP_NAME }}"
-          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/share/applications"
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/bin"
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/lib/${{ env.APP_NAME }}"
+          mkdir -p "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/share/applications"
 
-          cp -r build/linux/x64/release/bundle/* "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/lib/${{ env.APP_NAME }}/"
+          cp -r build/linux/*/release/bundle/* "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/lib/${{ env.APP_NAME }}/"
 
-          cat << 'EOF' > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin/vmwareget"
+          cat << 'EOF' > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/bin/vmwareget"
           #!/bin/bash
           exec /usr/lib/VMwareGet/vmwareget "$@"
           EOF
-          chmod +x "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/bin/vmwareget"
+          chmod +x "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/bin/vmwareget"
 
-          cat << EOF > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64/usr/share/applications/${{ env.APP_ID }}.desktop"
+          cat << EOF > "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}/usr/share/applications/${{ env.APP_ID }}.desktop"
           [Desktop Entry]
           Name=VMwareGet
           Comment=VMware Download & Account Companion App
@@ -286,17 +332,17 @@ jobs:
           /usr/share/applications/${{ env.APP_ID }}.desktop
           EOF
 
-          rpmbuild -bb --target x86_64 --buildroot "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.x86_64" "$RPM_ROOT/SPECS/vmwareget.spec"
-          find "$RPM_ROOT/RPMS" -name "*.rpm" -exec cp {} "dist/${{ env.APP_NAME }}-Linux-x86_64.rpm" \;
+          rpmbuild -bb --target ${{ matrix.rpm_target }} --buildroot "$RPM_ROOT/BUILDROOT/vmwareget-${VERSION_TAG}-1.${{ matrix.rpm_target }}" "$RPM_ROOT/SPECS/vmwareget.spec"
+          find "$RPM_ROOT/RPMS" -name "*.rpm" -exec cp {} "dist/VMwareGet-linux-${{ matrix.arch }}.rpm" \;
 
       - name: Upload RPM Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: linux-rpm
-          path: dist/${{ env.APP_NAME }}-Linux-x86_64.rpm
+          name: linux-rpm-${{ matrix.arch }}
+          path: dist/VMwareGet-linux-${{ matrix.arch }}.rpm
 
   # ============================================================================
-  # 5. Android Build (.apk)
+  # 5. Android Build (.apk) - arm64-v8a, x86_64, universal
   # ============================================================================
   build-android:
     name: Build Android (.apk)
@@ -328,19 +374,25 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build Android APK
-        run: flutter build apk --release
+      - name: Build Android APK (Per-ABI splits + Universal)
+        run: |
+          flutter build apk --release --split-per-abi
+          flutter build apk --release
 
-      - name: Prepare APK Artifact
+      - name: Prepare APK Artifacts
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ env.APP_NAME }}-Android.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/VMwareGet-android-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk "dist/VMwareGet-android-x86_64.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "dist/VMwareGet-android-armeabi-v7a.apk" || true
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/VMwareGet-android-universal.apk"
+          ls -lh dist/
 
-      - name: Upload Android Artifact
+      - name: Upload Android Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: android-apk
-          path: dist/${{ env.APP_NAME }}-Android.apk
+          path: dist/*.apk
 
   # ============================================================================
   # 6. Release Publisher
@@ -359,8 +411,8 @@ jobs:
       - name: Collect and flatten release assets
         run: |
           mkdir -p release-dist
-          echo "=== Collecting build artifacts (excluding any .zip) ==="
-          find raw-artifacts -type f ! -name "*.zip" -exec cp -v {} release-dist/ \;
+          echo "=== Collecting build artifacts ==="
+          find raw-artifacts -type f -exec cp -v {} release-dist/ \;
           echo "=== Final Distribution Files ==="
           ls -lh release-dist/
 

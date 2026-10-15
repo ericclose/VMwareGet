@@ -617,6 +617,11 @@ class DownloadService {
 
   /// Opens a filesystem directory across macOS, Windows, Linux, and Android.
   static Future<bool> openDirectory(String directoryPath) async {
+    // Avoid launching OS GUI windows (Finder / Explorer / File Managers) in automated tests
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return true;
+    }
+
     final dir = Directory(directoryPath);
     if (!await dir.exists()) {
       try {
@@ -650,6 +655,10 @@ class DownloadService {
   }
 
   Future<void> openContainingFolder(String filePath) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
+
     try {
       if (Platform.isMacOS) {
         await Process.run('open', ['-R', filePath]);
@@ -665,6 +674,10 @@ class DownloadService {
   }
 
   Future<void> openFile(String filePath) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
+
     if (Platform.isAndroid) {
       try {
         const channel = MethodChannel('io.github.vmwareget/platform');

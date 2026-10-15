@@ -581,7 +581,7 @@ class SettingsView extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _getLanguageSubtitle(localeProvider.locale.languageCode),
+                            localeProvider.currentLanguage.englishName,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -605,29 +605,32 @@ class SettingsView extends StatelessWidget {
                       ),
                       position: PopupMenuPosition.under,
                       onSelected: (code) => localeProvider.setLocale(Locale(code)),
-                      itemBuilder: (context) => [
-                        _buildLanguageMenuItem(
-                          value: 'en',
-                          flag: '🇺🇸',
-                          label: l10n.langEnglish,
-                          isSelected: localeProvider.locale.languageCode == 'en',
-                          theme: theme,
-                        ),
-                        _buildLanguageMenuItem(
-                          value: 'zh',
-                          flag: '🇨🇳',
-                          label: l10n.langChinese,
-                          isSelected: localeProvider.locale.languageCode == 'zh',
-                          theme: theme,
-                        ),
-                        _buildLanguageMenuItem(
-                          value: 'eo',
-                          flag: '🌐',
-                          label: l10n.langEsperanto,
-                          isSelected: localeProvider.locale.languageCode == 'eo',
-                          theme: theme,
-                        ),
-                      ],
+                      itemBuilder: (context) => LocaleProvider.supportedLanguages.map((lang) {
+                        final isSelected = localeProvider.locale.languageCode == lang.code;
+                        return PopupMenuItem<String>(
+                          value: lang.code,
+                          height: 38,
+                          child: Row(
+                            children: [
+                              Text(lang.flag, style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  lang.nativeName,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+                              ],
+                            ],
+                          ),
+                        );
+                      }).toList(),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
@@ -642,12 +645,12 @@ class SettingsView extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              _getLanguageFlag(localeProvider.locale.languageCode),
+                              localeProvider.currentLanguageFlag,
                               style: const TextStyle(fontSize: 16),
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _getLanguageLabel(localeProvider.locale.languageCode, l10n),
+                              localeProvider.currentLanguageNativeName,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -803,72 +806,4 @@ class SettingsView extends StatelessWidget {
     );
   }
 
-  String _getLanguageSubtitle(String code) {
-    switch (code) {
-      case 'zh':
-        return '简体中文 (Simplified Chinese)';
-      case 'eo':
-        return 'Esperanto (Internacia Lingvo)';
-      case 'en':
-      default:
-        return 'English (United States)';
-    }
-  }
-
-  PopupMenuItem<String> _buildLanguageMenuItem({
-    required String value,
-    required String flag,
-    required String label,
-    required bool isSelected,
-    required ThemeData theme,
-  }) {
-    final colorScheme = theme.colorScheme;
-    return PopupMenuItem<String>(
-      value: value,
-      height: 38,
-      child: Row(
-        children: [
-          Text(flag, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ),
-          if (isSelected) ...[
-            const SizedBox(width: 8),
-            Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _getLanguageFlag(String code) {
-    switch (code) {
-      case 'zh':
-        return '🇨🇳';
-      case 'eo':
-        return '🌐';
-      case 'en':
-      default:
-        return '🇺🇸';
-    }
-  }
-
-  String _getLanguageLabel(String code, AppLocalizations l10n) {
-    switch (code) {
-      case 'zh':
-        return l10n.langChinese;
-      case 'eo':
-        return l10n.langEsperanto;
-      case 'en':
-      default:
-        return l10n.langEnglish;
-    }
-  }
 }

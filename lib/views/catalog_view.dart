@@ -304,7 +304,7 @@ class CatalogView extends StatelessWidget {
     if (catalog.searchQuery.trim().isNotEmpty) {
       return Center(
         child: Text(
-          'No releases found matching "${catalog.searchQuery}"',
+          '${l10n.noReleasesFound} ("${catalog.searchQuery}")',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),

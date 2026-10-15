@@ -615,6 +615,40 @@ class DownloadService {
     onUpdate(item);
   }
 
+  /// Opens a filesystem directory across macOS, Windows, Linux, and Android.
+  static Future<bool> openDirectory(String directoryPath) async {
+    final dir = Directory(directoryPath);
+    if (!await dir.exists()) {
+      try {
+        await dir.create(recursive: true);
+      } catch (_) {}
+    }
+    try {
+      if (Platform.isMacOS) {
+        final res = await Process.run('open', [directoryPath]);
+        return res.exitCode == 0;
+      } else if (Platform.isWindows) {
+        final res = await Process.run('explorer.exe', [directoryPath]);
+        return res.exitCode == 0;
+      } else if (Platform.isLinux) {
+        final res = await Process.run('xdg-open', [directoryPath]);
+        return res.exitCode == 0;
+      } else if (Platform.isAndroid) {
+        const channel = MethodChannel('io.github.vmwareget/platform');
+        final result = await channel.invokeMethod<bool>('openDirectory', {'path': directoryPath});
+        return result ?? false;
+      }
+    } catch (_) {}
+
+    try {
+      final uri = Uri.directory(directoryPath);
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri);
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Future<void> openContainingFolder(String filePath) async {
     try {
       if (Platform.isMacOS) {
@@ -623,24 +657,11 @@ class DownloadService {
       } else if (Platform.isWindows) {
         await Process.run('explorer.exe', ['/select,', filePath]);
         return;
-      } else if (Platform.isLinux) {
-        final directoryPath = File(filePath).parent.path;
-        await Process.run('xdg-open', [directoryPath]);
-        return;
-      } else if (Platform.isAndroid) {
-        const channel = MethodChannel('io.github.vmwareget/platform');
-        final directoryPath = File(filePath).parent.path;
-        await channel.invokeMethod('openDirectory', {'path': directoryPath});
-        return;
       }
     } catch (_) {}
 
-    final file = File(filePath);
-    final directoryPath = file.parent.path;
-    final uri = Uri.directory(directoryPath);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+    final directoryPath = File(filePath).parent.path;
+    await openDirectory(directoryPath);
   }
 
   Future<void> openFile(String filePath) async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_logo.dart';
 import 'dashboard_view.dart';
@@ -40,7 +41,7 @@ class _AuthGateState extends State<AuthGate> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Checking Broadcom session status...',
+                AppLocalizations.of(context).authenticatingInApp,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

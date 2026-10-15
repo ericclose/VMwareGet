@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint, ChangeNotifier;
 
 enum DiagnosticLogLevel {
   info,
@@ -108,7 +109,8 @@ class DiagnosticService extends ChangeNotifier {
     final buffer = StringBuffer();
     buffer.writeln('=== VMwareGet Technical Diagnostic Report ===');
     buffer.writeln('Generated at: ${DateTime.now().toIso8601String()}');
-    buffer.writeln('Platform: macOS / Flutter (pinned v3.47.7)');
+    final os = kIsWeb ? 'Web' : Platform.operatingSystem;
+    buffer.writeln('Platform: $os / Flutter (pinned v3.47.7)');
     buffer.writeln('Total Log Entries: ${_entries.length}');
     buffer.writeln('----------------------------------------------------');
     for (final e in _entries) {

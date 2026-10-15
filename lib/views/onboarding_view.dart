@@ -47,11 +47,7 @@ class OnboardingView extends StatelessWidget {
                       Icon(Icons.language_rounded, size: 16, color: colorScheme.primary),
                       const SizedBox(width: 6),
                       Text(
-                        localeProvider.locale.languageCode == 'zh'
-                            ? '简体中文'
-                            : (localeProvider.locale.languageCode == 'eo'
-                                ? 'Esperanto'
-                                : 'English'),
+                        localeProvider.currentLanguageNativeName,
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurface,
@@ -75,50 +71,23 @@ class OnboardingView extends StatelessWidget {
                 ),
                 position: PopupMenuPosition.under,
                 onSelected: (code) => localeProvider.setLocale(Locale(code)),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'en',
+                itemBuilder: (context) => LocaleProvider.supportedLanguages.map((lang) {
+                  final isSelected = localeProvider.locale.languageCode == lang.code;
+                  return PopupMenuItem(
+                    value: lang.code,
                     child: Row(
                       children: [
-                        const Text('🇺🇸', style: TextStyle(fontSize: 16)),
+                        Text(lang.flag, style: const TextStyle(fontSize: 16)),
                         const SizedBox(width: 10),
-                        Text(l10n.langEnglish),
-                        if (localeProvider.locale.languageCode == 'en') ...[
+                        Text(lang.nativeName),
+                        if (isSelected) ...[
                           const Spacer(),
                           Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
                         ],
                       ],
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'zh',
-                    child: Row(
-                      children: [
-                        const Text('🇨🇳', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 10),
-                        Text(l10n.langChinese),
-                        if (localeProvider.locale.languageCode == 'zh') ...[
-                          const Spacer(),
-                          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
-                        ],
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'eo',
-                    child: Row(
-                      children: [
-                        const Text('🌐', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 10),
-                        Text(l10n.langEsperanto),
-                        if (localeProvider.locale.languageCode == 'eo') ...[
-                          const Spacer(),
-                          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+                }).toList(),
               );
             },
           ),

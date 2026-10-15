@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
@@ -158,29 +157,7 @@ class DownloadProvider extends ChangeNotifier {
   Future<bool> openDownloadDirectory() async {
     final dir = _customDownloadDir ?? _defaultSystemDownloadDir;
     if (dir.isNotEmpty) {
-      final directory = Directory(dir);
-      if (!await directory.exists()) {
-        try {
-          await directory.create(recursive: true);
-        } catch (_) {}
-      }
-      try {
-        if (Platform.isMacOS) {
-          final res = await Process.run('open', [dir]);
-          return res.exitCode == 0;
-        } else if (Platform.isWindows) {
-          final res = await Process.run('explorer.exe', [dir]);
-          return res.exitCode == 0;
-        } else if (Platform.isLinux) {
-          final res = await Process.run('xdg-open', [dir]);
-          return res.exitCode == 0;
-        } else if (Platform.isAndroid) {
-          const channel = MethodChannel('io.github.vmwareget/platform');
-          final result =
-              await channel.invokeMethod<bool>('openDirectory', {'path': dir});
-          return result ?? false;
-        }
-      } catch (_) {}
+      return await DownloadService.openDirectory(dir);
     }
     return false;
   }

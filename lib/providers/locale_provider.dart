@@ -3,7 +3,42 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/constants.dart';
 
+class AppLanguage {
+  final String code;
+  final String flag;
+  final String nativeName;
+  final String englishName;
+
+  const AppLanguage({
+    required this.code,
+    required this.flag,
+    required this.nativeName,
+    required this.englishName,
+  });
+}
+
 class LocaleProvider extends ChangeNotifier {
+  static const List<AppLanguage> supportedLanguages = [
+    AppLanguage(
+      code: 'en',
+      flag: '🇺🇸',
+      nativeName: 'English',
+      englishName: 'English (United States)',
+    ),
+    AppLanguage(
+      code: 'zh',
+      flag: '🇨🇳',
+      nativeName: '简体中文',
+      englishName: '简体中文 (Simplified Chinese)',
+    ),
+    AppLanguage(
+      code: 'eo',
+      flag: '🌐',
+      nativeName: 'Esperanto',
+      englishName: 'Esperanto (Internacia Lingvo)',
+    ),
+  ];
+
   Locale _locale = const Locale('en');
   Future<void>? _loadFuture;
 
@@ -12,6 +47,14 @@ class LocaleProvider extends ChangeNotifier {
   }
 
   Locale get locale => _locale;
+
+  AppLanguage get currentLanguage => supportedLanguages.firstWhere(
+        (l) => l.code == _locale.languageCode,
+        orElse: () => supportedLanguages.first,
+      );
+
+  String get currentLanguageFlag => currentLanguage.flag;
+  String get currentLanguageNativeName => currentLanguage.nativeName;
 
   Future<void> loadLocale() async {
     final future = () async {

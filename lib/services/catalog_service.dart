@@ -147,7 +147,7 @@ class CatalogService {
       await _saveCatalogToCache();
       DiagnosticService.instance.info(
         'Catalog',
-        'Catalog sync completed in ${(totalSw.elapsedMilliseconds / 1000).toStringAsFixed(2)}s! Retrieved ${onlineItems.length} official packages',
+        'Catalog sync completed in ${(totalSw.elapsedMilliseconds / 1000).toStringAsFixed(2)}s! Retrieved ${onlineItems.length} software packages',
       );
       return true;
     }
@@ -243,19 +243,14 @@ class CatalogService {
           'Empty or non-JSON SKU response for $subFamily, bootstrapping portal session...',
         );
         try {
-          final pageResp = await _dio.get(
-            'https://support.broadcom.com/group/ecx/productdownloads?subfamily=${Uri.encodeComponent(subFamily)}&freeDownloads=true',
-            options: Options(
-              headers: {
-                'Cookie': cookieHeader,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              },
-            ),
-          );
-          final match = RegExp(r'''Liferay\.authToken\s*=\s*['"]([^'"]+)['"]''').firstMatch(pageResp.data.toString());
-          if (match != null) {
-            currentCsrf = match.group(1)!;
-            DiagnosticService.instance.info('Catalog', 'Extracted fresh dynamic Liferay.authToken: $currentCsrf');
+          final dynToken =
+              await AuthService().fetchDynamicCsrfToken(cookieHeader);
+          if (dynToken != null && dynToken.isNotEmpty) {
+            currentCsrf = dynToken;
+            DiagnosticService.instance.info(
+              'Catalog',
+              'Extracted fresh dynamic Liferay.authToken: $currentCsrf',
+            );
           }
           final retryResp = await _dio.post(
             'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50',

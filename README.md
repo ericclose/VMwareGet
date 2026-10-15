@@ -49,15 +49,19 @@
 从 [Releases](https://github.com/ericclose/VMwareGet/releases) 页面下载适合您平台的安装包：
 
 ### macOS
-1. 下载最新发布的 `VMwareGet-macOS-arm64.dmg`（或 Universal 包）。
+1. 下载适合您 Mac 芯片的安装包：`VMwareGet-macos-arm64.dmg`（Apple Silicon）或 `VMwareGet-macos-x64.dmg`（Intel）。
 2. 双击打开 DMG，将 **VMwareGet** 拖拽至 **Applications**（应用程序）文件夹即可。
 
 ### Windows
-1. 下载 `VMwareGet-windows-x64.zip`。
-2. 解压至任意目录，双击运行 `VMwareGet.exe` 即可使用。
+1. 下载 `VMwareGet-windows-x64-setup.exe`。
+2. 双击安装向导即可完成安装。
+
+### Linux
+1. **Debian / Ubuntu**：下载 `VMwareGet-linux-x64.deb` 或 `VMwareGet-linux-arm64.deb`，通过 `sudo dpkg -i VMwareGet-linux-*.deb` 安装。
+2. **Fedora / RHEL**：下载 `VMwareGet-linux-x64.rpm` 或 `VMwareGet-linux-arm64.rpm`，通过 `sudo rpm -ivh VMwareGet-linux-*.rpm` 安装。
 
 ### Android
-1. 下载 `VMwareGet-android.apk`。
+1. 下载 `VMwareGet-android-arm64-v8a.apk`（主流现代手机）或 `VMwareGet-android-x86_64.apk`（模拟器/x86 设备）。
 2. 传输至 Android 设备或直接在手机浏览器中安装。
 
 ---
@@ -93,14 +97,14 @@ flutter pub get
 # 启动本地调试
 flutter run
 
-# 运行全量单元测试与可视化质量门禁 (37 项全通过)
+# 运行全量单元测试与质量门禁 (39 项全通过)
 ./test.sh
 ```
 
 ### 本地构建 Release 包
 
 ```bash
-# macOS 打包（生成自包含 DMG 并支持拖拽至 Applications）
+# 自动检测当前宿主操作系统与当前架构进行本地打包
 ./build.sh
 ```
 

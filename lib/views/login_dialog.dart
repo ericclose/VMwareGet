@@ -467,13 +467,6 @@ class _LoginDialogState extends State<LoginDialog> {
                   label: Text(l10n.instantDemoSession, style: const TextStyle(fontSize: 12)),
                   onPressed: _isSubmitting ? null : _useQuickDemoSession,
                 ),
-                TextButton.icon(
-                  icon: const Icon(Icons.launch_rounded, size: 14),
-                  label: Text(l10n.externalBrowser, style: const TextStyle(fontSize: 12)),
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => authProvider.openBroadcomLoginPortal(),
-                ),
               ],
             ),
             Row(

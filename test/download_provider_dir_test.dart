@@ -17,8 +17,7 @@ void main() {
 
     test('Initializes with default directory and can update custom directory', () async {
       final provider = DownloadProvider();
-      // Allow async _initDirectory to settle
-      await Future.delayed(const Duration(milliseconds: 50));
+      await provider.initFuture;
 
       final defaultDir = provider.defaultSystemDownloadDir;
       expect(defaultDir, isNotEmpty);
@@ -42,7 +41,7 @@ void main() {
 
     test('Initializes with default 16 threads and persists custom thread count up to 64', () async {
       final provider = DownloadProvider();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await provider.initFuture;
 
       expect(provider.downloadThreads, equals(16));
 
@@ -146,7 +145,7 @@ void main() {
 
       // Construct DownloadProvider and wait for initialization
       final provider = DownloadProvider();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await provider.initFuture;
 
       expect(provider.allDownloads.length, equals(1));
       expect(provider.completedCount, equals(1));
@@ -170,7 +169,7 @@ void main() {
 
     test('openDownloadDirectory executes safely and returns boolean result', () async {
       final provider = DownloadProvider();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await provider.initFuture;
       final result = await provider.openDownloadDirectory();
       expect(result, isA<bool>());
     });

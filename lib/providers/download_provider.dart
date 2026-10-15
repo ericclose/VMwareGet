@@ -18,9 +18,10 @@ class DownloadProvider extends ChangeNotifier {
   String _defaultSystemDownloadDir = '';
   int _downloadThreads = AppConstants.defaultDownloadThreads;
   DateTime _lastProgressPersistTime = DateTime.now();
+  late final Future<void> initFuture;
 
   DownloadProvider() {
-    _initDirectory();
+    initFuture = _initDirectory();
   }
 
   List<DownloadItem> get allDownloads => _items.values.toList()

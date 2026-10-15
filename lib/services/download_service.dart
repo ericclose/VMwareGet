@@ -41,14 +41,11 @@ class DownloadService {
               home = match.group(1);
             }
           }
-          final userDownloads = Directory(p.join(home!, 'Downloads'));
-          if (await userDownloads.exists()) {
-            final vmDir = Directory(p.join(userDownloads.path, 'VMwareGet'));
-            if (!await vmDir.exists()) {
-              await vmDir.create(recursive: true);
-            }
-            return vmDir.path;
+          final vmDir = Directory(p.join(home!, 'Downloads', 'VMwareGet'));
+          if (!await vmDir.exists()) {
+            await vmDir.create(recursive: true);
           }
+          return vmDir.path;
         }
       } else if (Platform.isWindows) {
         final userProfile = Platform.environment['USERPROFILE'];

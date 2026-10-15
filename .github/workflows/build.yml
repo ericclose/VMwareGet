@@ -364,7 +364,7 @@ jobs:
         run: flutter test
 
       - name: Build Android APK (arm64-v8a & x86_64)
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64,android-x64
 
       - name: Prepare APK Artifacts
         run: |

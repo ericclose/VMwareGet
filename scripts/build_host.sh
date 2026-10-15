@@ -11,6 +11,10 @@ RAW_ARCH="$(uname -m)"
 case "$RAW_ARCH" in
   x86_64|amd64) ARCH="x64" ;;
   arm64|aarch64) ARCH="arm64" ;;
+  i386|i686|armv7l|armhf)
+    echo "ERROR: 32-bit architecture ($RAW_ARCH) is not supported. VMwareGet requires a 64-bit platform." >&2
+    exit 1
+    ;;
   *) ARCH="$RAW_ARCH" ;;
 esac
 

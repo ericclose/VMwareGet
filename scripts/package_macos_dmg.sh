@@ -11,7 +11,7 @@ case "$RAW_ARCH" in
 esac
 DMG_OUTPUT="${1:-$PROJECT_ROOT/VMwareGet-macos-${ARCH}.dmg}"
 VOL_NAME="VMwareGet"
-STAGING_DIR="$PROJECT_ROOT/build/dmg_staging"
+STAGING_DIR="$PROJECT_ROOT/build/$VOL_NAME"
 
 if [ ! -d "$APP_PATH" ]; then
   echo "Error: VMwareGet.app not found at $APP_PATH. Please run build.sh first."
@@ -30,9 +30,10 @@ if [ -f "$APP_PATH/Contents/Resources/AppIcon.icns" ]; then
 fi
 
 echo "==> Packaging release compressed DMG silently ($DMG_OUTPUT)..."
-if diskutil image -h >/dev/null 2>&1; then
-  diskutil image create from --volumeName "$VOL_NAME" --format UDZO "$STAGING_DIR" "$DMG_OUTPUT"
+if diskutil image -h >/dev/null 2>&1 && diskutil image create from --format UDZO "$STAGING_DIR" "$DMG_OUTPUT" 2>/dev/null; then
+  echo "==> Disk image generated via Apple diskutil image engine."
 else
+  echo "==> Generating disk image via Apple hdiutil engine..."
   hdiutil create -srcfolder "$STAGING_DIR" -volname "$VOL_NAME" -format UDZO -ov "$DMG_OUTPUT"
 fi
 

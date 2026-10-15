@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
+import '../providers/locale_provider.dart';
 import '../widgets/app_logo.dart';
 import 'login_dialog.dart';
 
@@ -24,6 +25,106 @@ class OnboardingView extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          Consumer<LocaleProvider>(
+            builder: (context, localeProvider, _) {
+              return PopupMenuButton<String>(
+                icon: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.language_rounded, size: 16, color: colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        localeProvider.locale.languageCode == 'zh'
+                            ? '简体中文'
+                            : (localeProvider.locale.languageCode == 'eo'
+                                ? 'Esperanto'
+                                : 'English'),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.keyboard_arrow_down_rounded,
+                          size: 16, color: colorScheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+                tooltip: l10n.displayLanguage,
+                elevation: 3,
+                color: colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    width: 1,
+                  ),
+                ),
+                position: PopupMenuPosition.under,
+                onSelected: (code) => localeProvider.setLocale(Locale(code)),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'en',
+                    child: Row(
+                      children: [
+                        const Text('🇺🇸', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 10),
+                        Text(l10n.langEnglish),
+                        if (localeProvider.locale.languageCode == 'en') ...[
+                          const Spacer(),
+                          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+                        ],
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'zh',
+                    child: Row(
+                      children: [
+                        const Text('🇨🇳', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 10),
+                        Text(l10n.langChinese),
+                        if (localeProvider.locale.languageCode == 'zh') ...[
+                          const Spacer(),
+                          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+                        ],
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'eo',
+                    child: Row(
+                      children: [
+                        const Text('🌐', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 10),
+                        Text(l10n.langEsperanto),
+                        if (localeProvider.locale.languageCode == 'eo') ...[
+                          const Spacer(),
+                          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),

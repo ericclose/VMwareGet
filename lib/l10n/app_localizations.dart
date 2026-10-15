@@ -121,7 +121,7 @@ abstract class AppLocalizations {
   /// No description provided for @officialCompanion.
   ///
   /// In en, this message translates to:
-  /// **'Official Companion'**
+  /// **'Download Companion'**
   String get officialCompanion;
 
   /// No description provided for @signOut.
@@ -259,7 +259,7 @@ abstract class AppLocalizations {
   /// No description provided for @authRequiredDesc.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to access official download links, release packages, and verified checksums.'**
+  /// **'Sign in to access download links, release packages, and verified checksums.'**
   String get authRequiredDesc;
 
   /// No description provided for @reauthenticate.
@@ -283,7 +283,7 @@ abstract class AppLocalizations {
   /// No description provided for @officialReleasePackage.
   ///
   /// In en, this message translates to:
-  /// **'Official Release Package'**
+  /// **'Release Package'**
   String get officialReleasePackage;
 
   /// No description provided for @version.
@@ -877,7 +877,7 @@ abstract class AppLocalizations {
   /// No description provided for @broadcomAuthSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Connect your official Broadcom support portal session'**
+  /// **'Connect your Broadcom support portal session'**
   String get broadcomAuthSubtitle;
 
   /// No description provided for @tabInAppBrowser.
@@ -889,7 +889,7 @@ abstract class AppLocalizations {
   /// No description provided for @tabManualImport.
   ///
   /// In en, this message translates to:
-  /// **'cURL / Manual Import'**
+  /// **'Manual Import'**
   String get tabManualImport;
 
   /// No description provided for @inAppBrowserTitle.
@@ -1015,13 +1015,13 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Fast, clean companion to download and verify official VMware packages.'**
+  /// **'Fast, clean companion to download and verify VMware packages.'**
   String get welcomeSubtitle;
 
   /// No description provided for @feature1Title.
   ///
   /// In en, this message translates to:
-  /// **'Official Broadcom Software Packages'**
+  /// **'Broadcom Software Packages'**
   String get feature1Title;
 
   /// No description provided for @feature1Desc.
@@ -1057,7 +1057,7 @@ abstract class AppLocalizations {
   /// No description provided for @feature1Pill.
   ///
   /// In en, this message translates to:
-  /// **'Official Releases'**
+  /// **'Direct Releases'**
   String get feature1Pill;
 
   /// No description provided for @feature2Pill.

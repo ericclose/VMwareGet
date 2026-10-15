@@ -18,7 +18,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '偏好设置';
 
   @override
-  String get officialCompanion => '官方分发助手';
+  String get officialCompanion => '下载分发助手';
 
   @override
   String get signOut => '退出登录';
@@ -75,7 +75,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncOnlineCatalog => '同步最新目录';
 
   @override
-  String get fetchingReleases => '正在同步 Broadcom 官方版本库...';
+  String get fetchingReleases => '正在同步 Broadcom 版本库...';
 
   @override
   String get noOnlineReleasesLoaded => '未加载到版本数据';
@@ -87,7 +87,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authRequiredTitle => '需登录 Broadcom 账户';
 
   @override
-  String get authRequiredDesc => '请登录 Broadcom 账户以获取官方授权下载链接与校验元数据。';
+  String get authRequiredDesc => '请登录 Broadcom 账户以获取授权下载链接与校验元数据。';
 
   @override
   String get reauthenticate => '重新认证';
@@ -99,7 +99,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get liveBadge => '实时';
 
   @override
-  String get officialReleasePackage => '官方安装包';
+  String get officialReleasePackage => '原厂安装包';
 
   @override
   String get version => '版本号';
@@ -396,13 +396,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get broadcomAuthTitle => 'Broadcom 账户认证';
 
   @override
-  String get broadcomAuthSubtitle => '连接 Broadcom 官方支持门户会话';
+  String get broadcomAuthSubtitle => '连接 Broadcom 支持门户会话';
 
   @override
   String get tabInAppBrowser => '内嵌 Web 视图登录';
 
   @override
-  String get tabManualImport => '凭证 / cURL 导入';
+  String get tabManualImport => '手动导入';
 
   @override
   String get inAppBrowserTitle => '内嵌浏览器一键登录';
@@ -465,13 +465,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get welcomeTitle => '欢迎使用 VMwareGet';
 
   @override
-  String get welcomeSubtitle => '极简的 VMware 官方安装包高速下载与完整性校验工具';
+  String get welcomeSubtitle => '极简的 VMware 安装包高速下载与完整性校验工具';
 
   @override
-  String get feature1Title => '官方软件渠道';
+  String get feature1Title => '正版软件渠道';
 
   @override
-  String get feature1Desc => '直连官方安全下载源，全面支持 VMware Workstation Pro 与 Fusion。';
+  String get feature1Desc => '直连原厂安全下载源，全面支持 VMware Workstation Pro 与 Fusion。';
 
   @override
   String get feature2Title => '哈希完整性自动比对';
@@ -486,7 +486,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feature3Desc => '原生切片并发传输、断点续传与精确速率耗时预测。';
 
   @override
-  String get feature1Pill => '官方原包直链';
+  String get feature1Pill => '原包直链';
 
   @override
   String get feature2Pill => '哈希自动校验';
@@ -514,7 +514,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logInWithBroadcom => '登录 Broadcom 账户';
 
   @override
-  String get registerAccount => '注册官方账户';
+  String get registerAccount => '注册 Broadcom 账户';
 
   @override
   String get quickDemoAccess => '免登录快速体验';

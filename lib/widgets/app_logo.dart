@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class AppLogo extends StatelessWidget {
   final double size;
@@ -77,7 +78,7 @@ class AppLogo extends StatelessWidget {
               ],
             ),
             Text(
-              'Official Companion',
+              AppLocalizations.of(context).officialCompanion,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 letterSpacing: 0.2,

@@ -18,7 +18,7 @@ class AppLocalizationsEo extends AppLocalizations {
   String get settings => 'Agordoj';
 
   @override
-  String get officialCompanion => 'Oficiala Kunulo';
+  String get officialCompanion => 'Elŝuta Kunulo';
 
   @override
   String get signOut => 'Elsaluti';
@@ -89,7 +89,7 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String get authRequiredDesc =>
-      'Bonvolu ensaluti per Broadcom-konto por elŝuti oficialajn pakaĵojn.';
+      'Bonvolu ensaluti per Broadcom-konto por elŝuti pakaĵojn kaj kontroli haketkodojn.';
 
   @override
   String get reauthenticate => 'Reaŭtentigi';
@@ -102,7 +102,7 @@ class AppLocalizationsEo extends AppLocalizations {
   String get liveBadge => 'Reala';
 
   @override
-  String get officialReleasePackage => 'Oficiala Instalilo';
+  String get officialReleasePackage => 'Origina Instalilo';
 
   @override
   String get version => 'Versio';
@@ -407,13 +407,13 @@ class AppLocalizationsEo extends AppLocalizations {
   String get broadcomAuthTitle => 'Aŭtentigo de Broadcom';
 
   @override
-  String get broadcomAuthSubtitle => 'Konekti vian oficialan Broadcom-seancon';
+  String get broadcomAuthSubtitle => 'Konekti vian Broadcom-seancon';
 
   @override
   String get tabInAppBrowser => 'En-aplikaĵa Reto';
 
   @override
-  String get tabManualImport => 'Mana Importo / cURL';
+  String get tabManualImport => 'Mana Importo';
 
   @override
   String get inAppBrowserTitle => 'En-aplikaĵa Ensaluto';
@@ -479,11 +479,10 @@ class AppLocalizationsEo extends AppLocalizations {
   String get welcomeTitle => 'Bonvenon al VMwareGet';
 
   @override
-  String get welcomeSubtitle =>
-      'Rapida kaj pura kunulo por oficialaj VMware-eldonoj.';
+  String get welcomeSubtitle => 'Rapida kaj pura kunulo por VMware-eldonoj.';
 
   @override
-  String get feature1Title => 'Oficialaj Eldonoj';
+  String get feature1Title => 'Originaj Eldonoj';
 
   @override
   String get feature1Desc =>
@@ -494,7 +493,7 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String get feature2Desc =>
-      'Aŭtomata kontrolo de SHA-256 kaj MD5 post elŝuto kontraŭ oficialaj kodoj.';
+      'Aŭtomata kontrolo de SHA-256 kaj MD5 post elŝuto kontraŭ originalaj kodoj.';
 
   @override
   String get feature3Title => 'Range-Elŝuta Motoro';
@@ -504,7 +503,7 @@ class AppLocalizationsEo extends AppLocalizations {
       'Plurera elŝutado, paŭzo/rekomenco kaj realtempa rapideco.';
 
   @override
-  String get feature1Pill => 'Oficialaj Pakoj';
+  String get feature1Pill => 'Originaj Pakoj';
 
   @override
   String get feature2Pill => 'Hakaĵa Kontrolo';

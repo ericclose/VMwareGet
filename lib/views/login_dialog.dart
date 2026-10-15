@@ -211,6 +211,7 @@ class _LoginDialogState extends State<LoginDialog> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -264,35 +265,37 @@ class _LoginDialogState extends State<LoginDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Segmented Switcher for Login Method
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<int>(
-                      segments: [
-                        ButtonSegment<int>(
-                          value: 0,
-                          icon: const Icon(Icons.language_rounded, size: 16),
-                          label: Text(l10n.tabInAppBrowser),
+                  // Segmented Switcher for Login Method (Desktop / Web only)
+                  if (!isMobile) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<int>(
+                        segments: [
+                          ButtonSegment<int>(
+                            value: 0,
+                            icon: const Icon(Icons.language_rounded, size: 16),
+                            label: Text(l10n.tabInAppBrowser),
+                          ),
+                          ButtonSegment<int>(
+                            value: 1,
+                            icon: const Icon(Icons.code_rounded, size: 16),
+                            label: Text(l10n.tabManualImport),
+                          ),
+                        ],
+                        selected: {_selectedTab},
+                        onSelectionChanged: (newVal) {
+                          setState(() => _selectedTab = newVal.first);
+                        },
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        ButtonSegment<int>(
-                          value: 1,
-                          icon: const Icon(Icons.code_rounded, size: 16),
-                          label: Text(l10n.tabManualImport),
-                        ),
-                      ],
-                      selected: {_selectedTab},
-                      onSelectionChanged: (newVal) {
-                        setState(() => _selectedTab = newVal.first);
-                      },
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
 
-                  if (_selectedTab == 0)
+                  if (isMobile || _selectedTab == 0)
                     _buildInAppBrowserTab(context, theme, colorScheme, authProvider, l10n)
                   else
                     _buildManualImportTab(context, theme, colorScheme, authProvider, l10n),

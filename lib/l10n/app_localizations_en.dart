@@ -18,7 +18,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
-  String get officialCompanion => 'Official Companion';
+  String get officialCompanion => 'Download Companion';
 
   @override
   String get signOut => 'Sign Out';
@@ -89,7 +89,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authRequiredDesc =>
-      'Sign in to access official download links, release packages, and verified checksums.';
+      'Sign in to access download links, release packages, and verified checksums.';
 
   @override
   String get reauthenticate => 'Re-authenticate';
@@ -102,7 +102,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveBadge => 'Live';
 
   @override
-  String get officialReleasePackage => 'Official Release Package';
+  String get officialReleasePackage => 'Release Package';
 
   @override
   String get version => 'Version';
@@ -411,13 +411,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get broadcomAuthSubtitle =>
-      'Connect your official Broadcom support portal session';
+      'Connect your Broadcom support portal session';
 
   @override
   String get tabInAppBrowser => 'In-App Web';
 
   @override
-  String get tabManualImport => 'cURL / Manual Import';
+  String get tabManualImport => 'Manual Import';
 
   @override
   String get inAppBrowserTitle => 'In-App Browser Authentication';
@@ -484,10 +484,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeSubtitle =>
-      'Fast, clean companion to download and verify official VMware packages.';
+      'Fast, clean companion to download and verify VMware packages.';
 
   @override
-  String get feature1Title => 'Official Broadcom Software Packages';
+  String get feature1Title => 'Broadcom Software Packages';
 
   @override
   String get feature1Desc =>
@@ -508,7 +508,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Native multi-connection Range chunking, pause/resume capability, and live metrics.';
 
   @override
-  String get feature1Pill => 'Official Releases';
+  String get feature1Pill => 'Direct Releases';
 
   @override
   String get feature2Pill => 'Hash Verification';

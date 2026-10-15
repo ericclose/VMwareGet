@@ -49,7 +49,7 @@ class VMwareReleaseItem {
     required this.sha256,
     required this.md5,
     required this.officialDownloadUrl,
-    this.notes = 'Official Broadcom free license release for personal & commercial use.',
+    this.notes = 'Broadcom free license release for personal & commercial use.',
     this.displayGroup,
     this.servicePk,
     this.filePath,

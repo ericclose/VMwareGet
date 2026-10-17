@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
 import '../services/catalog_service.dart';
+import '../services/download_service.dart';
+import '../views/login_dialog.dart';
 
 class CatalogProvider extends ChangeNotifier {
   final CatalogService _catalogService = CatalogService();
@@ -78,7 +80,10 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshFromOnline(AuthSession? session) async {
+  Future<void> refreshFromOnline(
+    AuthSession? session, {
+    BuildContext? context,
+  }) async {
     if (session == null) {
       _syncStatusMessage = 'Broadcom session required to fetch online catalog.';
       notifyListeners();
@@ -89,16 +94,32 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final success = await _catalogService.syncOnlineCatalog(session);
+      final success = await _catalogService.syncOnlineCatalog(
+        session,
+        context: context,
+        onStatusUpdate: (msg) {
+          _syncStatusMessage = msg;
+          notifyListeners();
+        },
+      );
       if (success) {
         final items = _catalogService.getReleasesForFamily(_selectedFamily);
-        _syncStatusMessage = 'Catalog synced live from Broadcom (${items.length} releases)';
+        _syncStatusMessage =
+            'Catalog synced live from Broadcom (${items.length} releases, direct links ready)';
         if (items.isNotEmpty) {
           _selectedRelease = items.first;
         }
       } else {
         _syncStatusMessage = _catalogService.lastSyncError ??
             'Unable to fetch online catalog. Please verify session.';
+      }
+    } on BroadcomAuthExpiredException {
+      _syncStatusMessage = 'Broadcom session expired. Please log in again.';
+      if (context != null && context.mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => const LoginDialog(),
+        );
       }
     } catch (e) {
       _syncStatusMessage = 'Sync error: $e';

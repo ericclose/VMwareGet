@@ -347,7 +347,10 @@ class CatalogView extends StatelessWidget {
                     final auth =
                         Provider.of<AuthProvider>(context, listen: false);
                     if (auth.isAuthenticated) {
-                      catalog.refreshFromOnline(auth.currentSession);
+                      catalog.refreshFromOnline(
+                        auth.currentSession,
+                        context: context,
+                      );
                     } else {
                       showDialog(
                         context: context,

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,20 +12,54 @@ import '../models/auth_session.dart';
 import '../models/download_item.dart';
 import '../models/vmware_product.dart';
 import '../utils/constants.dart';
-import '../utils/json_utils.dart';
 import 'auth_service.dart';
+import 'catalog_service.dart';
 import 'checksum_service.dart';
 import 'diagnostic_service.dart';
+import 'webview_bridge.dart';
+
+class BroadcomAuthExpiredException implements Exception {
+  final String message;
+  const BroadcomAuthExpiredException([
+    this.message = 'Broadcom session has expired. Please re-authenticate.',
+  ]);
+
+  @override
+  String toString() => message;
+}
 
 class DownloadService {
-  final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(minutes: 60),
-      followRedirects: true,
-      maxRedirects: 5,
-    ),
-  );
+  late final Dio _dio;
+
+  DownloadService({Dio? dio}) {
+    _dio = dio ?? _createOptimizedDio();
+  }
+
+  static Dio _createOptimizedDio() {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(minutes: 60),
+        followRedirects: true,
+        maxRedirects: 5,
+        headers: {
+          'User-Agent': AppConstants.broadcomUserAgent,
+        },
+      ),
+    );
+    if (!kIsWeb) {
+      dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.maxConnectionsPerHost = AppConstants.maxDownloadThreads;
+          client.idleTimeout = const Duration(seconds: 45);
+          client.connectionTimeout = const Duration(seconds: 15);
+          return client;
+        },
+      );
+    }
+    return dio;
+  }
 
   final ChecksumService _checksumService = ChecksumService();
   final Map<String, CancelToken> _cancelTokens = {};
@@ -121,62 +157,84 @@ class DownloadService {
     }
 
     try {
-      final cookieHeader = session.cookieJar ?? session.sessionToken;
-      String? csrf = session.csrfToken;
-      if (csrf == null || csrf.isEmpty) {
-        csrf = await AuthService().fetchDynamicCsrfToken(cookieHeader);
+      final orderPayload = {
+        'downloadType': 'HTTP',
+        'productName': release.family == VMwareProductFamily.workstationPro
+            ? 'VMware Workstation Pro'
+            : 'VMware Fusion',
+        'releaseDescription': release.releaseDesc ??
+            (release.family == VMwareProductFamily.workstationPro
+                ? 'VMware Workstation Pro (For Windows)'
+                : 'VMware Fusion (for Intel-based and Apple silicon Macs)'),
+        'skuCode': '',
+        'displayGroup': release.displayGroup,
+        'release': release.version,
+        'genLevel': release.servicePk ?? '',
+        'language': 'EN',
+        'os': '',
+        'eulaId': release.eulaId ?? 17290717,
+        'accessToken': false,
+        'siteId': '105246',
+        'orderedFiles': [
+          {
+            'filePath': release.filePath,
+            'fileSize': release.fileSizeBytes,
+          }
+        ]
+      };
+
+      Map<String, dynamic>? data;
+
+      // 1. Try Native WebviewBridge first if active (genuine browser execution, zero Cloudflare block)
+      if (WebviewBridge.instance.isAvailable) {
+        data = await WebviewBridge.instance.bridgePostJson(
+          url:
+              'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder',
+          body: orderPayload,
+          csrfToken: session.csrfToken,
+        );
       }
 
-      final orderResp = await _dio.post(
-        'https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder',
-        data: {
-          'downloadType': 'HTTP',
-          'productName': release.family == VMwareProductFamily.workstationPro
-              ? 'VMware Workstation Pro'
-              : 'VMware Fusion',
-          'releaseDescription': release.releaseDesc ??
-              (release.family == VMwareProductFamily.workstationPro
-                  ? 'VMware Workstation Pro (For Windows)'
-                  : 'VMware Fusion (for Intel-based and Apple silicon Macs)'),
-          'skuCode': '',
-          'displayGroup': release.displayGroup,
-          'release': release.version,
-          'genLevel': release.servicePk ?? '',
-          'language': 'EN',
-          'os': '',
-          'eulaId': release.eulaId ?? 17290717,
-          'accessToken': false,
-          'siteId': '105246',
-          'orderedFiles': [
-            {
-              'filePath': release.filePath,
-              'fileSize': release.fileSizeBytes,
-            }
-          ]
-        },
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json;charset=UTF-8',
-            'Origin': 'https://support.broadcom.com',
-            'Referer': 'https://support.broadcom.com/group/ecx/productfiles',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language':
-                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
-            'Cookie': cookieHeader,
-            'x-csrf-token': csrf ?? '',
-          },
-        ),
-      );
-
-      if (orderResp.statusCode == 200 && orderResp.data != null) {
-        final data = parseJsonMap(orderResp.data);
-        if (data != null && data['success'] == true) {
-          final dlUrl = data['data']?['downloadUrl'] as String?;
+      if (data != null && data['success'] == true) {
+        final dlUrl = data['data']?['downloadUrl'] as String?;
+        if (dlUrl != null && dlUrl.isNotEmpty) {
           return dlUrl;
         }
       }
+
+      // 2. If bridge is not active or did not return URL, trigger fast silent browser sync.
+      // Never use Dio to request support.broadcom.com directly, as Cloudflare WAF will 403 block it.
+      DiagnosticService.instance.info(
+        'Download',
+        'Direct download URL not populated. Initiating fast silent browser sync for ${release.fileName}...',
+      );
+      final syncedCount = await AuthService().syncCatalogInBrowser(silent: true);
+      if (syncedCount > 0) {
+        final updatedReleases = CatalogService().getAllReleases();
+        final match = updatedReleases.firstWhere(
+          (r) =>
+              r.id == release.id ||
+              (r.family == release.family &&
+                  r.version == release.version &&
+                  r.platform == release.platform),
+          orElse: () => release,
+        );
+        if (match.directDownloadUrl != null &&
+            match.directDownloadUrl!.isNotEmpty) {
+          DiagnosticService.instance.info(
+            'Download',
+            'Obtained direct download URL from silent browser sync: ${match.directDownloadUrl}',
+          );
+          return match.directDownloadUrl;
+        }
+      }
+    } on BroadcomAuthExpiredException {
+      rethrow;
     } catch (e) {
-      print('Error generating download order: $e');
+      DiagnosticService.instance.error(
+        'Download',
+        'Error generating download order: $e',
+      );
     }
     return null;
   }
@@ -196,13 +254,39 @@ class DownloadService {
 
     // 1. Resolve authorized download link
     String downloadUrl = item.release.officialDownloadUrl;
-    if (session != null && item.release.filePath != null) {
-      final authorizedUrl = await generateAuthorizedDownloadUrl(
-        release: item.release,
-        session: session,
-      );
-      if (authorizedUrl != null && authorizedUrl.isNotEmpty) {
-        downloadUrl = authorizedUrl;
+    if (item.directDownloadUrl != null && item.directDownloadUrl!.isNotEmpty) {
+      downloadUrl = item.directDownloadUrl!;
+    } else if (item.release.directDownloadUrl != null &&
+        item.release.directDownloadUrl!.isNotEmpty) {
+      downloadUrl = item.release.directDownloadUrl!;
+    } else if (item.release.filePath != null) {
+      if (session == null) {
+        item.status = DownloadStatus.failed;
+        item.errorMessage =
+            'Broadcom session required. Please log in again to download.';
+        onUpdate(item);
+        return;
+      }
+
+      try {
+        final authorizedUrl = await generateAuthorizedDownloadUrl(
+          release: item.release,
+          session: session,
+        );
+        if (authorizedUrl != null && authorizedUrl.isNotEmpty) {
+          downloadUrl = authorizedUrl;
+        } else {
+          item.status = DownloadStatus.failed;
+          item.errorMessage =
+              'Failed to generate authorized link. Broadcom session may have expired.';
+          onUpdate(item);
+          return;
+        }
+      } on BroadcomAuthExpiredException catch (e) {
+        item.status = DownloadStatus.failed;
+        item.errorMessage = e.message;
+        onUpdate(item);
+        return;
       }
     }
     item.directDownloadUrl = downloadUrl;
@@ -219,8 +303,7 @@ class DownloadService {
             responseType: ResponseType.stream,
             headers: {
               'Range': 'bytes=0-0',
-              'User-Agent':
-                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+              'User-Agent': AppConstants.broadcomUserAgent,
             },
             validateStatus: (status) => status != null && status < 400,
           ),
@@ -417,21 +500,37 @@ class DownloadService {
               responseType: ResponseType.stream,
               headers: {
                 'Range': 'bytes=$rangeStart-$rangeEnd',
-                'User-Agent':
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+                'User-Agent': AppConstants.broadcomUserAgent,
               },
             ),
             cancelToken: cancelToken,
           );
 
           final stream = resp.data!.stream;
+          final List<int> writeBuffer = [];
+          int bufferPos = -1;
+
+          Future<void> flushBuffer() async {
+            if (writeBuffer.isEmpty) return;
+            final dataToWrite = Uint8List.fromList(writeBuffer);
+            final pos = bufferPos;
+            writeBuffer.clear();
+            bufferPos = -1;
+            await writeAt(pos, dataToWrite);
+          }
+
           await for (final buffer in stream) {
             if (cancelToken.isCancelled) break;
-            final writePos = chunk['current']!;
-            chunk['current'] = writePos + buffer.length;
+            if (bufferPos == -1) {
+              bufferPos = chunk['current']!;
+            }
+            writeBuffer.addAll(buffer);
+            chunk['current'] = chunk['current']! + buffer.length;
             item.downloadedBytes += buffer.length;
 
-            await writeAt(writePos, buffer);
+            if (writeBuffer.length >= 64 * 1024) {
+              await flushBuffer();
+            }
 
             final now = DateTime.now();
             final lastTime = _lastSampleTimes[item.id] ?? now;
@@ -450,6 +549,7 @@ class DownloadService {
               await saveMetadata();
             }
           }
+          await flushBuffer();
           break;
         } catch (e) {
           if (cancelToken.isCancelled) break;
@@ -516,8 +616,7 @@ class DownloadService {
       responseType: ResponseType.stream,
       headers: {
         if (existingBytes > 0) 'Range': 'bytes=$existingBytes-',
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
+        'User-Agent': AppConstants.broadcomUserAgent,
       },
     );
 

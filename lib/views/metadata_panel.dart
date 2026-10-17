@@ -11,6 +11,8 @@ import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
 import '../widgets/checksum_badge.dart';
 import '../widgets/download_dir_dialog.dart';
+import '../services/download_service.dart';
+import 'login_dialog.dart';
 
 class MetadataPanel extends StatelessWidget {
   final VMwareReleaseItem? release;
@@ -34,6 +36,44 @@ class MetadataPanel extends StatelessWidget {
     );
   }
 
+  void _showSessionExpiredPrompt(BuildContext context, AppLocalizations l10n) {
+    final colorScheme = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: colorScheme.error,
+        content: Row(
+          children: [
+            const Icon(Icons.lock_clock_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.broadcomSessionExpiredTip,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: l10n.reloginAction,
+          textColor: Colors.amberAccent,
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => const LoginDialog(),
+            );
+          },
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Future<void> _copyDownloadLink(
     BuildContext context,
     VMwareReleaseItem release,
@@ -42,7 +82,14 @@ class MetadataPanel extends StatelessWidget {
   ) async {
     final l10n = AppLocalizations.of(context);
     final scaffold = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
 
+    if (session == null && release.filePath != null) {
+      _showSessionExpiredPrompt(context, l10n);
+      return;
+    }
+
+    scaffold.hideCurrentSnackBar();
     scaffold.showSnackBar(
       SnackBar(
         content: Row(
@@ -59,26 +106,42 @@ class MetadataPanel extends StatelessWidget {
             Text(l10n.generatingDownloadLink),
           ],
         ),
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
       ),
     );
 
-    final url = await downloadProvider.resolveDownloadUrl(
-      release: release,
-      session: session,
-    );
+    try {
+      final url = await downloadProvider.resolveDownloadUrl(
+        release: release,
+        session: session,
+      );
 
-    await Clipboard.setData(ClipboardData(text: url));
+      await Clipboard.setData(ClipboardData(text: url));
 
-    scaffold.hideCurrentSnackBar();
-    scaffold.showSnackBar(
-      SnackBar(
-        content: Text(l10n.copyDirectDownloadLinkSuccess),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      scaffold.hideCurrentSnackBar();
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text(l10n.copyDirectDownloadLinkSuccess),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } on BroadcomAuthExpiredException catch (_) {
+      scaffold.hideCurrentSnackBar();
+      if (context.mounted) {
+        _showSessionExpiredPrompt(context, l10n);
+      }
+    } catch (e) {
+      scaffold.hideCurrentSnackBar();
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text('Failed: $e'),
+          backgroundColor: theme.colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -200,6 +263,10 @@ class MetadataPanel extends StatelessWidget {
                           ),
                         ),
                         onPressed: () async {
+                          if (authSession == null && item.filePath != null) {
+                            _showSessionExpiredPrompt(context, l10n);
+                            return;
+                          }
                           final confirmed =
                               await DownloadDirDialog.showIfNeeded(context);
                           if (!confirmed) return;
@@ -208,6 +275,11 @@ class MetadataPanel extends StatelessWidget {
                             session: authSession,
                             sessionCookie: authSession?.cookieJar ??
                                 authSession?.sessionToken,
+                            onAuthExpired: () {
+                              if (context.mounted) {
+                                _showSessionExpiredPrompt(context, l10n);
+                              }
+                            },
                           );
                           onNavigateToDownloads();
                         },
@@ -251,6 +323,10 @@ class MetadataPanel extends StatelessWidget {
                           ),
                         ),
                         onPressed: () async {
+                          if (authSession == null && item.filePath != null) {
+                            _showSessionExpiredPrompt(context, l10n);
+                            return;
+                          }
                           final confirmed =
                               await DownloadDirDialog.showIfNeeded(context);
                           if (!confirmed) return;
@@ -259,6 +335,11 @@ class MetadataPanel extends StatelessWidget {
                             session: authSession,
                             sessionCookie: authSession?.cookieJar ??
                                 authSession?.sessionToken,
+                            onAuthExpired: () {
+                              if (context.mounted) {
+                                _showSessionExpiredPrompt(context, l10n);
+                              }
+                            },
                           );
                           onNavigateToDownloads();
                         },

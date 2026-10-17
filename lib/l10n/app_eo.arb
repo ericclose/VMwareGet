@@ -180,5 +180,8 @@
   "copyDirectDownloadLink": "Kopii Rektan Ligilon",
   "copyDirectDownloadLinkSuccess": "Rekta elŝuta ligilo kopiita al tondujo.",
   "generatingDownloadLink": "Generante rajtigitan elŝutan ligilon...",
-  "clearCompletedDownloads": "Forigi Kompletigitan Historion"
+  "clearCompletedDownloads": "Forigi Kompletigitan Historion",
+  "broadcomSessionExpiredTip": "Broadcom-seanco eksvalidiĝis. Bonvolu reensaluti por generi rajtigitajn elŝutajn ligilojn.",
+  "reloginAction": "Reensaluti",
+  "sessionExpiredTitle": "Seanco Eksvalidiĝis"
 }

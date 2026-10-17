@@ -61,7 +61,9 @@ class _LoginDialogState extends State<LoginDialog> {
       });
       if (success) {
         final catalog = Provider.of<CatalogProvider>(context, listen: false);
-        catalog.refreshFromOnline(authProvider.currentSession);
+        await catalog.catalogService.loadCachedCatalog();
+        if (!mounted) return;
+        catalog.selectFamily(catalog.selectedFamily);
         Navigator.of(context).pop(true);
       } else if (authProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(

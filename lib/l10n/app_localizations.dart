@@ -1185,6 +1185,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear Completed History'**
   String get clearCompletedDownloads;
+
+  /// No description provided for @broadcomSessionExpiredTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcom session has expired. Please log in again to generate authorized download links.'**
+  String get broadcomSessionExpiredTip;
+
+  /// No description provided for @reloginAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Log In Again'**
+  String get reloginAction;
+
+  /// No description provided for @sessionExpiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpiredTitle;
 }
 
 class _AppLocalizationsDelegate

@@ -559,4 +559,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get clearCompletedDownloads => '清除已完成记录';
+
+  @override
+  String get broadcomSessionExpiredTip => 'Broadcom 登录凭据已过期，请重新登录以换取高速下载直链。';
+
+  @override
+  String get reloginAction => '重新登录';
+
+  @override
+  String get sessionExpiredTitle => '登录会话已过期';
 }

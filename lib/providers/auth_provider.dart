@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../services/auth_service.dart';
+import '../services/webview_bridge.dart';
 
 enum AuthStatus {
   initial,
@@ -78,6 +79,7 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    WebviewBridge.instance.dispose();
     await _authService.clearSession();
     _currentSession = null;
     _status = AuthStatus.unauthenticated;
@@ -135,7 +137,7 @@ class AuthProvider extends ChangeNotifier {
       if (testData != null && testData['cookie']?.isNotEmpty == true) {
         final email = testData['email']?.isNotEmpty == true
             ? testData['email']!
-            : 'ZetaGo@protonmail.com';
+            : 'user@broadcom.account';
         return await loginWithManualToken(
           email: email,
           token: testData['cookie']!,

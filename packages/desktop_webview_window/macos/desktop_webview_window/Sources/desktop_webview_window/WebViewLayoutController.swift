@@ -151,10 +151,20 @@ class WebViewLayoutController: NSViewController {
     webView.customUserAgent = (defaultUserAgent ?? "") + applicationName
   }
 
+  private var isDestroyed = false
+
   func destroy() {
+    guard !isDestroyed else { return }
+    isDestroyed = true
+
     webView.stopLoading(self)
     webView.removeFromSuperview()
-    titleBarController.engine.shutDownEngine()
+    titleBarController.view.removeFromSuperview()
+    titleBarController.removeFromParent()
+    let engine = titleBarController.engine
+    DispatchQueue.main.async {
+      engine.shutDownEngine()
+    }
   }
 
   func reload() {

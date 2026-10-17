@@ -580,4 +580,14 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String get clearCompletedDownloads => 'Forigi Kompletigitan Historion';
+
+  @override
+  String get broadcomSessionExpiredTip =>
+      'Broadcom-seanco eksvalidiĝis. Bonvolu reensaluti por generi rajtigitajn elŝutajn ligilojn.';
+
+  @override
+  String get reloginAction => 'Reensaluti';
+
+  @override
+  String get sessionExpiredTitle => 'Seanco Eksvalidiĝis';
 }

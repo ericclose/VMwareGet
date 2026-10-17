@@ -67,7 +67,11 @@ class WebviewWindowController: NSWindowController {
     }
   }
 
+  private var isDestroyed = false
+
   func destroy() {
+    guard !isDestroyed else { return }
+    isDestroyed = true
     webViewController.destroy()
     webviewPlugin = nil
     window?.delegate = nil
@@ -101,7 +105,6 @@ class WebviewWindowController: NSWindowController {
 
 extension WebviewWindowController: NSWindowDelegate {
   func windowWillClose(_ notification: Notification) {
-    webViewController.destroy()
     methodChannel.invokeMethod("onWindowClose", arguments: ["id": viewId])
     webviewPlugin?.onWebviewWindowClose(viewId: viewId, wc: self)
     destroy()

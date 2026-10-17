@@ -6,7 +6,9 @@ import '../l10n/app_localizations.dart';
 import '../models/download_item.dart';
 import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
+import '../services/download_service.dart';
 import '../utils/formatters.dart';
+import '../views/login_dialog.dart';
 
 class DownloadProgressTile extends StatelessWidget {
   final DownloadItem item;
@@ -225,31 +227,62 @@ class DownloadProgressTile extends StatelessWidget {
 
             if (item.errorMessage != null) ...[
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 16,
-                      color: colorScheme.error,
+              Builder(
+                builder: (context) {
+                  final isAuthError = item.errorMessage!.toLowerCase().contains('expired') ||
+                      item.errorMessage!.toLowerCase().contains('re-login') ||
+                      item.errorMessage!.toLowerCase().contains('session') ||
+                      item.errorMessage!.toLowerCase().contains('unauthor');
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        item.errorMessage!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onErrorContainer,
-                          fontSize: 12,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isAuthError ? Icons.lock_clock_outlined : Icons.warning_amber_rounded,
+                          size: 16,
+                          color: colorScheme.error,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isAuthError ? l10n.broadcomSessionExpiredTip : item.errorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onErrorContainer,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        if (isAuthError) ...[
+                          const SizedBox(width: 8),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const LoginDialog(),
+                              );
+                            },
+                            child: Text(
+                              l10n.reloginAction,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
 
@@ -328,6 +361,7 @@ class DownloadProgressTile extends StatelessWidget {
                     icon: const Icon(Icons.link_rounded, size: 20),
                     onPressed: () async {
                       final scaffold = ScaffoldMessenger.of(context);
+                      scaffold.hideCurrentSnackBar();
                       scaffold.showSnackBar(
                         SnackBar(
                           content: Row(
@@ -344,26 +378,58 @@ class DownloadProgressTile extends StatelessWidget {
                               Text(l10n.generatingDownloadLink),
                             ],
                           ),
-                          duration: const Duration(milliseconds: 600),
+                          duration: const Duration(seconds: 4),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
 
-                      final url = await downloadProvider.resolveDownloadUrl(
-                        release: item.release,
-                        session: authSession,
-                      );
+                      try {
+                        final url = await downloadProvider.resolveDownloadUrl(
+                          release: item.release,
+                          session: authSession,
+                        );
 
-                      await Clipboard.setData(ClipboardData(text: url));
+                        await Clipboard.setData(ClipboardData(text: url));
 
-                      scaffold.hideCurrentSnackBar();
-                      scaffold.showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.copyDirectDownloadLinkSuccess),
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                        scaffold.hideCurrentSnackBar();
+                        scaffold.showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.copyDirectDownloadLinkSuccess),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } on BroadcomAuthExpiredException catch (_) {
+                        scaffold.hideCurrentSnackBar();
+                        if (context.mounted) {
+                          scaffold.showSnackBar(
+                            SnackBar(
+                              backgroundColor: colorScheme.error,
+                              content: Text(l10n.broadcomSessionExpiredTip),
+                              action: SnackBarAction(
+                                label: l10n.reloginAction,
+                                textColor: Colors.amberAccent,
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => const LoginDialog(),
+                                  );
+                                },
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 6),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        scaffold.hideCurrentSnackBar();
+                        scaffold.showSnackBar(
+                          SnackBar(
+                            content: Text('Failed: $e'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
                   ),
                   IconButton(

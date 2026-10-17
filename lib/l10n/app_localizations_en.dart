@@ -584,4 +584,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearCompletedDownloads => 'Clear Completed History';
+
+  @override
+  String get broadcomSessionExpiredTip =>
+      'Broadcom session has expired. Please log in again to generate authorized download links.';
+
+  @override
+  String get reloginAction => 'Log In Again';
+
+  @override
+  String get sessionExpiredTitle => 'Session Expired';
 }

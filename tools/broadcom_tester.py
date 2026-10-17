@@ -17,12 +17,18 @@ DEFAULT_HEADERS = {
     'User-Agent': (
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/155.0.0.0 Safari/537.36'
+        'Chrome/133.0.0.0 Safari/537.36'
     ),
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
     'Content-Type': 'application/json;charset=UTF-8',
     'Origin': 'https://support.broadcom.com',
+    'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
 }
 
 SESSION_FILE = os.path.join(os.path.dirname(__file__), '.session.json')

@@ -177,35 +177,56 @@ class DownloadProvider extends ChangeNotifier {
       return existing.directDownloadUrl!;
     }
 
-    if (session != null && release.filePath != null) {
-      try {
-        final authorized = await _downloadService.generateAuthorizedDownloadUrl(
-          release: release,
-          session: session,
+    if (release.directDownloadUrl != null &&
+        release.directDownloadUrl!.isNotEmpty) {
+      if (existing != null) {
+        existing.directDownloadUrl = release.directDownloadUrl;
+        _persistHistory();
+      }
+      return release.directDownloadUrl!;
+    }
+
+    if (release.filePath != null) {
+      if (session == null) {
+        throw const BroadcomAuthExpiredException(
+          'Please log in with Broadcom account to generate direct link.',
         );
-        if (authorized != null && authorized.isNotEmpty) {
-          if (existing != null) {
-            existing.directDownloadUrl = authorized;
-            _persistHistory();
-          }
-          return authorized;
+      }
+      final authorized = await _downloadService.generateAuthorizedDownloadUrl(
+        release: release,
+        session: session,
+      );
+      if (authorized != null && authorized.isNotEmpty) {
+        if (existing != null) {
+          existing.directDownloadUrl = authorized;
+          _persistHistory();
         }
-      } catch (e) {
-        DiagnosticService.instance.warn(
-          'Download',
-          'Failed to resolve direct download link: $e',
-        );
+        return authorized;
       }
     }
 
-    return release.officialDownloadUrl;
+    // Only return officialDownloadUrl if it is an actual direct file link (not portal landing page)
+    if (release.officialDownloadUrl.isNotEmpty &&
+        !release.officialDownloadUrl.contains('support.broadcom.com/group/ecx')) {
+      return release.officialDownloadUrl;
+    }
+
+    throw const BroadcomAuthExpiredException(
+      'Direct download link expired or unavailable. Please re-login or sync catalog.',
+    );
   }
 
   Future<void> startDownload({
     required VMwareReleaseItem release,
     AuthSession? session,
     String? sessionCookie,
+    VoidCallback? onAuthExpired,
   }) async {
+    if (release.filePath != null && session == null) {
+      onAuthExpired?.call();
+      return;
+    }
+
     final targetDir = _customDownloadDir ??
         await _downloadService.getDefaultDownloadDirectory();
     final destPath = p.join(targetDir, release.fileName);
@@ -226,7 +247,14 @@ class DownloadProvider extends ChangeNotifier {
       item: item,
       session: session,
       threads: _downloadThreads,
-      onUpdate: _onDownloadUpdate,
+      onUpdate: (updated) {
+        _onDownloadUpdate(updated);
+        if (updated.status == DownloadStatus.failed &&
+            (updated.errorMessage?.toLowerCase().contains('expired') == true ||
+                updated.errorMessage?.toLowerCase().contains('re-login') == true)) {
+          onAuthExpired?.call();
+        }
+      },
     );
   }
 
@@ -255,9 +283,68 @@ class DownloadProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> redownload({
+    required String id,
+    AuthSession? session,
+    VoidCallback? onAuthExpired,
+  }) async {
+    final item = _items[id];
+    if (item == null) return;
+
+    // 1. Delete destination file and vmeta file
+    try {
+      final file = File(item.destinationPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      final metaFile = File('${item.destinationPath}.vmeta');
+      if (await metaFile.exists()) {
+        await metaFile.delete();
+      }
+    } catch (_) {}
+
+    // 2. Reset item status
+    item.downloadedBytes = 0;
+    item.speedBytesPerSec = 0;
+    item.status = DownloadStatus.downloading;
+    item.verificationStatus = VerificationStatus.notStarted;
+    item.errorMessage = null;
+    item.completedAt = null;
+    item.startedAt = DateTime.now();
+    item.directDownloadUrl = null;
+
+    notifyListeners();
+    await _persistHistory();
+
+    // 3. Initiate clean download
+    _downloadService.startOrResumeDownload(
+      item: item,
+      session: session,
+      threads: _downloadThreads,
+      onUpdate: (updated) {
+        _onDownloadUpdate(updated);
+        if (updated.status == DownloadStatus.failed &&
+            (updated.errorMessage?.toLowerCase().contains('expired') == true ||
+                updated.errorMessage?.toLowerCase().contains('re-login') == true)) {
+          onAuthExpired?.call();
+        }
+      },
+    );
+  }
+
   Future<void> reVerifyChecksum(String id) async {
     final item = _items[id];
     if (item != null) {
+      final file = File(item.destinationPath);
+      if (!await file.exists()) {
+        item.verificationStatus = VerificationStatus.failedMismatch;
+        item.errorMessage = 'Local file does not exist or has been deleted';
+        notifyListeners();
+        return;
+      }
+      item.status = DownloadStatus.verifying;
+      item.verificationStatus = VerificationStatus.verifying;
+      notifyListeners();
       await _downloadService.verifyDownloadedFile(
         item: item,
         onUpdate: _onDownloadUpdate,
@@ -265,18 +352,38 @@ class DownloadProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> openContainingFolder(String id) async {
+  Future<bool> openContainingFolder(String id) async {
     final item = _items[id];
     if (item != null) {
+      final file = File(item.destinationPath);
+      if (!await file.exists()) {
+        item.errorMessage = 'Local file does not exist or has been deleted';
+        notifyListeners();
+        final parent = file.parent;
+        if (await parent.exists()) {
+          await DownloadService.openDirectory(parent.path);
+        }
+        return false;
+      }
       await _downloadService.openContainingFolder(item.destinationPath);
+      return true;
     }
+    return false;
   }
 
-  Future<void> openDownloadedFile(String id) async {
+  Future<bool> openDownloadedFile(String id) async {
     final item = _items[id];
     if (item != null) {
+      final file = File(item.destinationPath);
+      if (!await file.exists()) {
+        item.errorMessage = 'Local file does not exist or has been deleted';
+        notifyListeners();
+        return false;
+      }
       await _downloadService.openFile(item.destinationPath);
+      return true;
     }
+    return false;
   }
 
   Future<void> deleteDownload({

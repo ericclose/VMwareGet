@@ -22,6 +22,8 @@ class CatalogView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final catalog = Provider.of<CatalogProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
+    final hasSessionExpired = catalog.isSessionExpired || auth.isSessionExpired;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -94,86 +96,9 @@ class CatalogView extends StatelessWidget {
                   ? null
                   : () {
                       final session = Provider.of<AuthProvider>(context, listen: false).currentSession;
-                      catalog.refreshFromOnline(session);
+                      catalog.refreshFromOnline(session, context: context);
                     },
             ),
-            if (catalog.selectedFamily == VMwareProductFamily.workstationPro) ...[
-              const SizedBox(width: 4),
-              PopupMenuButton<String>(
-                tooltip: l10n.filterPlatform,
-                icon: Icon(
-                  Icons.filter_list_rounded,
-                  color: catalog.platformFilter != null
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-                onSelected: (val) {
-                  if (val == 'windows') {
-                    catalog.setPlatformFilter(VMwarePlatform.windows);
-                  } else if (val == 'linux') {
-                    catalog.setPlatformFilter(VMwarePlatform.linux);
-                  } else {
-                    catalog.setPlatformFilter(null);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem<String>(
-                    value: 'all',
-                    child: Row(
-                      children: [
-                        Icon(
-                          catalog.platformFilter == null
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          size: 16,
-                          color: catalog.platformFilter == null
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(l10n.allPlatforms),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'windows',
-                    child: Row(
-                      children: [
-                        Icon(
-                          catalog.platformFilter == VMwarePlatform.windows
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          size: 16,
-                          color: catalog.platformFilter == VMwarePlatform.windows
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(l10n.windowsOnly),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'linux',
-                    child: Row(
-                      children: [
-                        Icon(
-                          catalog.platformFilter == VMwarePlatform.linux
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          size: 16,
-                          color: catalog.platformFilter == VMwarePlatform.linux
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(l10n.linuxOnly),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ],
         );
 
@@ -208,6 +133,8 @@ class CatalogView extends StatelessWidget {
                 const SizedBox(height: 16),
                 searchAndFilters,
                 const SizedBox(height: 16),
+                if (hasSessionExpired)
+                  _buildSessionExpiredBanner(context, theme, colorScheme, l10n),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,6 +148,7 @@ class CatalogView extends StatelessWidget {
                                 catalog,
                                 theme,
                                 colorScheme,
+                                hasSessionExpired,
                               )
                             : releasesList,
                       ),
@@ -254,6 +182,8 @@ class CatalogView extends StatelessWidget {
               const SizedBox(height: 12),
               searchAndFilters,
               const SizedBox(height: 12),
+              if (hasSessionExpired)
+                _buildSessionExpiredBanner(context, theme, colorScheme, l10n),
               Expanded(
                 child: catalog.filteredReleases.isEmpty
                     ? _buildEmptyState(
@@ -261,6 +191,7 @@ class CatalogView extends StatelessWidget {
                         catalog,
                         theme,
                         colorScheme,
+                        hasSessionExpired,
                       )
                     : releasesList,
               ),
@@ -271,13 +202,124 @@ class CatalogView extends StatelessWidget {
     );
   }
 
+  Widget _buildSessionExpiredBanner(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AppLocalizations l10n,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.error.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_clock_outlined, color: colorScheme.error, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.sessionExpiredTitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.broadcomSessionExpiredTip,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onErrorContainer.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const LoginDialog(),
+              );
+            },
+            child: Text(l10n.reloginAction),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState(
     BuildContext context,
     CatalogProvider catalog,
     ThemeData theme,
     ColorScheme colorScheme,
+    bool hasSessionExpired,
   ) {
     final l10n = AppLocalizations.of(context);
+
+    if (hasSessionExpired) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_clock_outlined, size: 48, color: colorScheme.error),
+              const SizedBox(height: 12),
+              Text(
+                l10n.sessionExpiredTitle,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.broadcomSessionExpiredTip,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                  foregroundColor: colorScheme.onError,
+                ),
+                icon: const Icon(Icons.login_rounded, size: 18),
+                label: Text(l10n.reloginAction),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const LoginDialog(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (catalog.isSyncing) {
       return Center(
@@ -347,7 +389,10 @@ class CatalogView extends StatelessWidget {
                     final auth =
                         Provider.of<AuthProvider>(context, listen: false);
                     if (auth.isAuthenticated) {
-                      catalog.refreshFromOnline(auth.currentSession);
+                      catalog.refreshFromOnline(
+                        auth.currentSession,
+                        context: context,
+                      );
                     } else {
                       showDialog(
                         context: context,

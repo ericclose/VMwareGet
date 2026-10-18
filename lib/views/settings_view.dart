@@ -12,6 +12,7 @@ import '../services/folder_picker_service.dart';
 import '../utils/constants.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/diagnostic_dialog.dart';
+import 'login_dialog.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -61,15 +62,66 @@ class SettingsView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (auth.isSessionExpired) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.errorContainer.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: colorScheme.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lock_clock_outlined, color: colorScheme.error, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l10n.broadcomSessionExpiredTip,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onErrorContainer,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: colorScheme.error,
+                                foregroundColor: colorScheme.onError,
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                              onPressed: () => showDialog(
+                                context: context,
+                                builder: (_) => const LoginDialog(),
+                              ),
+                              child: Text(l10n.reloginAction),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.person_rounded,
-                            color: colorScheme.onPrimaryContainer,
-                            size: 26,
+                        Badge(
+                          isLabelVisible: auth.isSessionExpired,
+                          backgroundColor: colorScheme.error,
+                          alignment: Alignment.bottomRight,
+                          smallSize: 8,
+                          child: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: auth.isSessionExpired
+                                ? colorScheme.errorContainer
+                                : colorScheme.primaryContainer,
+                            child: Icon(
+                              Icons.person_rounded,
+                              color: auth.isSessionExpired
+                                  ? colorScheme.onErrorContainer
+                                  : colorScheme.onPrimaryContainer,
+                              size: 26,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -97,6 +149,21 @@ class SettingsView extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        if (auth.isSessionExpired) ...[
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: colorScheme.error,
+                              foregroundColor: colorScheme.onError,
+                            ),
+                            icon: const Icon(Icons.login_rounded, size: 16),
+                            label: Text(l10n.reloginAction),
+                            onPressed: () => showDialog(
+                              context: context,
+                              builder: (_) => const LoginDialog(),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                         FilledButton.tonal(
                           style: FilledButton.styleFrom(
                             foregroundColor: colorScheme.error,
@@ -115,9 +182,13 @@ class SettingsView extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Icon(
-                            Icons.verified_rounded,
+                            auth.isSessionExpired
+                                ? Icons.warning_amber_rounded
+                                : Icons.verified_rounded,
                             size: 16,
-                            color: Colors.green.shade700,
+                            color: auth.isSessionExpired
+                                ? colorScheme.error
+                                : Colors.green.shade700,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -132,9 +203,13 @@ class SettingsView extends StatelessWidget {
                                   ),
                                 ),
                                 TextSpan(
-                                  text: l10n.complianceApproved,
+                                  text: auth.isSessionExpired
+                                      ? l10n.sessionExpiredTitle
+                                      : l10n.complianceApproved,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.green.shade800,
+                                    color: auth.isSessionExpired
+                                        ? colorScheme.error
+                                        : Colors.green.shade800,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

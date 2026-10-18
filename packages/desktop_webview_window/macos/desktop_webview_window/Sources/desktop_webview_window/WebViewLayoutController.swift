@@ -151,10 +151,20 @@ class WebViewLayoutController: NSViewController {
     webView.customUserAgent = (defaultUserAgent ?? "") + applicationName
   }
 
+  private var isDestroyed = false
+
   func destroy() {
+    guard !isDestroyed else { return }
+    isDestroyed = true
+
     webView.stopLoading(self)
     webView.removeFromSuperview()
-    titleBarController.engine.shutDownEngine()
+    titleBarController.view.removeFromSuperview()
+    titleBarController.removeFromParent()
+    let engine = titleBarController.engine
+    DispatchQueue.main.async {
+      engine.shutDownEngine()
+    }
   }
 
   func reload() {
@@ -206,6 +216,44 @@ class WebViewLayoutController: NSViewController {
       }
 
       completer(cookieDict)
+    }
+  }
+
+  func setCookies(cookies: [[String: Any]], completer: @escaping FlutterResult) {
+    let cookieStore = self.webView.configuration.websiteDataStore.httpCookieStore
+    let group = DispatchGroup()
+
+    for item in cookies {
+      guard let name = item["name"] as? String,
+            let value = item["value"] as? String,
+            let domain = item["domain"] as? String else {
+        continue
+      }
+      let path = item["path"] as? String ?? "/"
+      var properties: [HTTPCookiePropertyKey: Any] = [
+        .name: name,
+        .value: value,
+        .domain: domain,
+        .path: path
+      ]
+      if let expiresDate = item["expiresDate"] as? Double, expiresDate > 0 {
+        properties[.expires] = Date(timeIntervalSince1970: expiresDate)
+      } else {
+        properties[.expires] = Date(timeIntervalSinceNow: 30 * 86400)
+      }
+      if let isSecure = item["isSecure"] as? Bool {
+        properties[.secure] = isSecure ? "TRUE" : "FALSE"
+      }
+      if let cookie = HTTPCookie(properties: properties) {
+        group.enter()
+        cookieStore.setCookie(cookie) {
+          group.leave()
+        }
+      }
+    }
+
+    group.notify(queue: .main) {
+      completer(nil)
     }
   }
 

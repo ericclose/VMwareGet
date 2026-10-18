@@ -39,4 +39,31 @@ class AndroidCookieService {
       return false;
     }
   }
+
+  /// Injects a single cookie string into Android's android.webkit.CookieManager
+  static Future<bool> setCookie(String url, String cookie) async {
+    if (kIsWeb || !Platform.isAndroid) return false;
+    try {
+      final result = await _channel.invokeMethod<bool>('setCookie', {
+        'url': url,
+        'cookie': cookie,
+      });
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Injects a list of structured cookies into Android's android.webkit.CookieManager with 30-day persistence
+  static Future<bool> setCookies(List<Map<String, dynamic>> cookies) async {
+    if (kIsWeb || !Platform.isAndroid || cookies.isEmpty) return false;
+    try {
+      final result = await _channel.invokeMethod<bool>('setCookies', {
+        'cookies': cookies,
+      });
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

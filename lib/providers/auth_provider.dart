@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../services/auth_service.dart';
+import '../services/webview_bridge.dart';
 
 enum AuthStatus {
   initial,
@@ -15,12 +16,36 @@ class AuthProvider extends ChangeNotifier {
   AuthSession? _currentSession;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isSessionExpired = false;
+  bool _isColdStartupSession = false;
 
   AuthStatus get status => _status;
   AuthSession? get currentSession => _currentSession;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isSessionExpired => _isSessionExpired;
+  bool get isColdStartupSession => _isColdStartupSession;
+
+  bool consumeStartupSyncNeeded() {
+    if (_isColdStartupSession) {
+      _isColdStartupSession = false;
+      return true;
+    }
+    return false;
+  }
+
+  void notifySessionExpired() {
+    _isSessionExpired = true;
+    notifyListeners();
+  }
+
+  void clearSessionExpired() {
+    if (_isSessionExpired) {
+      _isSessionExpired = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> checkAuth() async {
     _isLoading = true;
@@ -31,13 +56,18 @@ class AuthProvider extends ChangeNotifier {
       if (session != null && session.isValid) {
         _currentSession = session;
         _status = AuthStatus.authenticated;
+        _isSessionExpired = false;
+        _isColdStartupSession = true;
       } else {
         _currentSession = null;
         _status = AuthStatus.unauthenticated;
+        _isSessionExpired = false;
+        _isColdStartupSession = false;
       }
     } catch (e) {
       _status = AuthStatus.unauthenticated;
       _errorMessage = e.toString();
+      _isColdStartupSession = false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -63,6 +93,8 @@ class AuthProvider extends ChangeNotifier {
       );
       _currentSession = session;
       _status = AuthStatus.authenticated;
+      _isSessionExpired = false;
+      _isColdStartupSession = false;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -78,9 +110,12 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    WebviewBridge.instance.dispose();
     await _authService.clearSession();
     _currentSession = null;
     _status = AuthStatus.unauthenticated;
+    _isSessionExpired = false;
+    _isColdStartupSession = false;
     _isLoading = false;
     notifyListeners();
   }
@@ -109,6 +144,8 @@ class AuthProvider extends ChangeNotifier {
       if (session != null) {
         _currentSession = session;
         _status = AuthStatus.authenticated;
+        _isSessionExpired = false;
+        _isColdStartupSession = false;
         _isLoading = false;
         notifyListeners();
         return true;
@@ -135,7 +172,7 @@ class AuthProvider extends ChangeNotifier {
       if (testData != null && testData['cookie']?.isNotEmpty == true) {
         final email = testData['email']?.isNotEmpty == true
             ? testData['email']!
-            : 'ZetaGo@protonmail.com';
+            : 'user@broadcom.account';
         return await loginWithManualToken(
           email: email,
           token: testData['cookie']!,

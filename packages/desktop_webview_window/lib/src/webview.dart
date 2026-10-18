@@ -103,4 +103,6 @@ abstract class Webview {
   Future<void> postWebMessageAsJson(String webMessage);
 
   Future<List<WebviewCookie>> getAllCookies();
+
+  Future<void> setCookies(List<Map<String, dynamic>> cookies);
 }

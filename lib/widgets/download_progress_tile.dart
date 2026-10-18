@@ -6,7 +6,9 @@ import '../l10n/app_localizations.dart';
 import '../models/download_item.dart';
 import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
+import '../services/download_service.dart';
 import '../utils/formatters.dart';
+import '../views/login_dialog.dart';
 
 class DownloadProgressTile extends StatelessWidget {
   final DownloadItem item;
@@ -16,10 +18,44 @@ class DownloadProgressTile extends StatelessWidget {
     required this.item,
   });
 
-  Widget _buildStatusChip(BuildContext context) {
+  Widget _buildStatusChip(BuildContext context, bool fileExists) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
+
+    if (item.status == DownloadStatus.verifying ||
+        item.verificationStatus == VerificationStatus.verifying) {
+      final bg = Colors.amber.withValues(alpha: 0.2);
+      final fg = Colors.amber.shade900;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: fg,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l10n.statusVerifying,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     Color bg;
     Color fg;
@@ -46,7 +82,12 @@ class DownloadProgressTile extends StatelessWidget {
         icon = Icons.security_rounded;
         break;
       case DownloadStatus.completed:
-        if (item.verificationStatus == VerificationStatus.passed) {
+        if (!fileExists) {
+          bg = colorScheme.errorContainer;
+          fg = colorScheme.onErrorContainer;
+          label = l10n.statusFileNotFound;
+          icon = Icons.file_copy_outlined;
+        } else if (item.verificationStatus == VerificationStatus.passed) {
           bg = Colors.green.withValues(alpha: 0.2);
           fg = Colors.green.shade800;
           label = l10n.statusPassed;
@@ -116,17 +157,26 @@ class DownloadProgressTile extends StatelessWidget {
     final authSession = Provider.of<AuthProvider>(context, listen: false).currentSession;
 
     final percent = (item.progress * 100).toStringAsFixed(1);
+    final fileExists = File(item.destinationPath).existsSync();
+    final isVerifying = item.status == DownloadStatus.verifying ||
+        item.verificationStatus == VerificationStatus.verifying;
+    final isCompleted = item.status == DownloadStatus.completed && !isVerifying;
+    final isFileMissing = isCompleted && !fileExists;
+    final isMismatch = isCompleted && fileExists && item.verificationStatus == VerificationStatus.failedMismatch;
+    final isPassed = isCompleted && fileExists && item.verificationStatus == VerificationStatus.passed;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: item.verificationStatus == VerificationStatus.passed
-              ? Colors.green.withValues(alpha: 0.5)
-              : (item.verificationStatus == VerificationStatus.failedMismatch
+          color: isVerifying
+              ? Colors.amber.withValues(alpha: 0.7)
+              : ((isFileMissing || isMismatch)
                   ? colorScheme.error
-                  : colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                  : (isPassed
+                      ? Colors.green.withValues(alpha: 0.5)
+                      : colorScheme.outlineVariant.withValues(alpha: 0.4))),
         ),
       ),
       child: Padding(
@@ -162,7 +212,7 @@ class DownloadProgressTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _buildStatusChip(context),
+                _buildStatusChip(context, fileExists),
               ],
             ),
             const SizedBox(height: 12),
@@ -171,17 +221,17 @@ class DownloadProgressTile extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
-                value: item.status == DownloadStatus.verifying
-                    ? null
-                    : item.progress,
+                value: isVerifying ? null : item.progress,
                 minHeight: 8,
                 backgroundColor: colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  item.verificationStatus == VerificationStatus.failedMismatch
-                      ? colorScheme.error
-                      : (item.verificationStatus == VerificationStatus.passed
-                          ? Colors.green
-                          : colorScheme.primary),
+                  isVerifying
+                      ? Colors.amber.shade700
+                      : ((isFileMissing || isMismatch)
+                          ? colorScheme.error
+                          : (isPassed
+                              ? Colors.green
+                              : colorScheme.primary)),
                 ),
               ),
             ),
@@ -223,7 +273,7 @@ class DownloadProgressTile extends StatelessWidget {
               ],
             ),
 
-            if (item.errorMessage != null) ...[
+            if (isFileMissing) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -241,7 +291,7 @@ class DownloadProgressTile extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        item.errorMessage!,
+                        l10n.localFileNotFoundTip,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onErrorContainer,
                           fontSize: 12,
@@ -250,6 +300,65 @@ class DownloadProgressTile extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ] else if (item.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Builder(
+                builder: (context) {
+                  final isAuthError = item.errorMessage!.toLowerCase().contains('expired') ||
+                      item.errorMessage!.toLowerCase().contains('re-login') ||
+                      item.errorMessage!.toLowerCase().contains('session') ||
+                      item.errorMessage!.toLowerCase().contains('unauthor');
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isAuthError ? Icons.lock_clock_outlined : Icons.warning_amber_rounded,
+                          size: 16,
+                          color: colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isAuthError ? l10n.broadcomSessionExpiredTip : item.errorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onErrorContainer,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        if (isAuthError) ...[
+                          const SizedBox(width: 8),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const LoginDialog(),
+                              );
+                            },
+                            child: Text(
+                              l10n.reloginAction,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
 
@@ -266,38 +375,123 @@ class DownloadProgressTile extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  if (item.status == DownloadStatus.completed) ...[
+                  if (isVerifying) ...[
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
-                      icon: const Icon(Icons.folder_open_rounded, size: 16),
-                      label: Text(
-                        Platform.isMacOS
-                            ? l10n.showInFinder
-                            : l10n.showInFolder,
+                      icon: const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      onPressed: () =>
-                          downloadProvider.openContainingFolder(item.id),
+                      label: Text(l10n.statusVerifying),
+                      onPressed: null,
                     ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                  ] else if (item.status == DownloadStatus.completed) ...[
+                    if (isFileMissing) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(l10n.reDownload),
+                        onPressed: () => downloadProvider.redownload(
+                          id: item.id,
+                          session: authSession,
+                        ),
                       ),
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: Text(l10n.reVerifyChecksum),
-                      onPressed: () =>
-                          downloadProvider.reVerifyChecksum(item.id),
-                    ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.folder_open_rounded, size: 16),
+                        label: Text(
+                          Platform.isMacOS
+                              ? l10n.showInFinder
+                              : l10n.showInFolder,
+                        ),
+                        onPressed: () =>
+                            downloadProvider.openContainingFolder(item.id),
                       ),
-                      icon: const Icon(Icons.launch_rounded, size: 16),
-                      label: Text(l10n.openInstaller),
-                      onPressed: () =>
-                          downloadProvider.openDownloadedFile(item.id),
-                    ),
+                    ] else if (isMismatch) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(l10n.reDownload),
+                        onPressed: () => downloadProvider.redownload(
+                          id: item.id,
+                          session: authSession,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(l10n.reVerifyChecksum),
+                        onPressed: () =>
+                            downloadProvider.reVerifyChecksum(item.id),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.folder_open_rounded, size: 16),
+                        label: Text(
+                          Platform.isMacOS
+                              ? l10n.showInFinder
+                              : l10n.showInFolder,
+                        ),
+                        onPressed: () =>
+                            downloadProvider.openContainingFolder(item.id),
+                      ),
+                    ] else ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.folder_open_rounded, size: 16),
+                        label: Text(
+                          Platform.isMacOS
+                              ? l10n.showInFinder
+                              : l10n.showInFolder,
+                        ),
+                        onPressed: () =>
+                            downloadProvider.openContainingFolder(item.id),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(l10n.reVerifyChecksum),
+                        onPressed: () =>
+                            downloadProvider.reVerifyChecksum(item.id),
+                      ),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.launch_rounded, size: 16),
+                        label: Text(l10n.openInstaller),
+                        onPressed: () async {
+                          final opened = await downloadProvider
+                              .openDownloadedFile(item.id);
+                          if (!opened && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.fileNotFound),
+                                backgroundColor: colorScheme.error,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
                   ] else if (item.status == DownloadStatus.downloading) ...[
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -328,6 +522,7 @@ class DownloadProgressTile extends StatelessWidget {
                     icon: const Icon(Icons.link_rounded, size: 20),
                     onPressed: () async {
                       final scaffold = ScaffoldMessenger.of(context);
+                      scaffold.hideCurrentSnackBar();
                       scaffold.showSnackBar(
                         SnackBar(
                           content: Row(
@@ -344,26 +539,58 @@ class DownloadProgressTile extends StatelessWidget {
                               Text(l10n.generatingDownloadLink),
                             ],
                           ),
-                          duration: const Duration(milliseconds: 600),
+                          duration: const Duration(seconds: 4),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
 
-                      final url = await downloadProvider.resolveDownloadUrl(
-                        release: item.release,
-                        session: authSession,
-                      );
+                      try {
+                        final url = await downloadProvider.resolveDownloadUrl(
+                          release: item.release,
+                          session: authSession,
+                        );
 
-                      await Clipboard.setData(ClipboardData(text: url));
+                        await Clipboard.setData(ClipboardData(text: url));
 
-                      scaffold.hideCurrentSnackBar();
-                      scaffold.showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.copyDirectDownloadLinkSuccess),
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                        scaffold.hideCurrentSnackBar();
+                        scaffold.showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.copyDirectDownloadLinkSuccess),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } on BroadcomAuthExpiredException catch (_) {
+                        scaffold.hideCurrentSnackBar();
+                        if (context.mounted) {
+                          scaffold.showSnackBar(
+                            SnackBar(
+                              backgroundColor: colorScheme.error,
+                              content: Text(l10n.broadcomSessionExpiredTip),
+                              action: SnackBarAction(
+                                label: l10n.reloginAction,
+                                textColor: Colors.amberAccent,
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => const LoginDialog(),
+                                  );
+                                },
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 6),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        scaffold.hideCurrentSnackBar();
+                        scaffold.showSnackBar(
+                          SnackBar(
+                            content: Text('Failed: $e'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
                   ),
                   IconButton(

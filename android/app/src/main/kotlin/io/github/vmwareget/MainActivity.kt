@@ -89,6 +89,57 @@ class MainActivity : FlutterActivity() {
                         result.error("COOKIE_ERROR", e.localizedMessage, null)
                     }
                 }
+                "setCookie" -> {
+                    val url = call.argument<String>("url")
+                    val cookie = call.argument<String>("cookie")
+                    if (url != null && cookie != null) {
+                        try {
+                            CookieManager.getInstance().setCookie(url, cookie)
+                            CookieManager.getInstance().flush()
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.e(tag, "setCookie error: ${e.localizedMessage}", e)
+                            result.error("COOKIE_ERROR", e.localizedMessage, null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGS", "url and cookie are required", null)
+                    }
+                }
+                "setCookies" -> {
+                    val cookies = call.argument<List<Map<String, Any>>>("cookies")
+                    if (cookies != null) {
+                        try {
+                            val cm = CookieManager.getInstance()
+                            for (item in cookies) {
+                                val name = item["name"] as? String ?: continue
+                                val value = item["value"] as? String ?: continue
+                                val domain = item["domain"] as? String ?: "support.broadcom.com"
+                                val path = item["path"] as? String ?: "/"
+                                val isSecure = item["isSecure"] as? Boolean ?: true
+
+                                val cleanDomain = domain.trimStart('.')
+                                val url = "https://$cleanDomain"
+                                val cookieBuilder = StringBuilder()
+                                    .append("$name=$value; ")
+                                    .append("domain=$cleanDomain; ")
+                                    .append("path=$path; ")
+                                    .append("Max-Age=2592000; ") // 30 days
+                                if (isSecure) {
+                                    cookieBuilder.append("Secure; ")
+                                }
+                                cm.setCookie(url, cookieBuilder.toString())
+                            }
+                            cm.flush()
+                            Log.i(tag, "setCookies successfully injected ${cookies.size} cookies with 30-day persistence")
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.e(tag, "setCookies error: ${e.localizedMessage}", e)
+                            result.error("COOKIE_ERROR", e.localizedMessage, null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGS", "cookies parameter is required", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

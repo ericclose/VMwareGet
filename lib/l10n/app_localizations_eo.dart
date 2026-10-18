@@ -168,6 +168,19 @@ class AppLocalizationsEo extends AppLocalizations {
   String get reVerifyChecksum => 'Rekontroli Haketkodon';
 
   @override
+  String get reDownload => 'Reduelŝuti';
+
+  @override
+  String get fileNotFound => 'Loka dosiero ne ekzistas';
+
+  @override
+  String get localFileNotFoundTip =>
+      'La loka dosiero estis forigita aŭ movita. Klaku por reduelŝuti.';
+
+  @override
+  String get statusFileNotFound => 'Dosiero Manki';
+
+  @override
   String get activeRecentTransfers => 'Aktivaj kaj Lastaj Elŝutoj';
 
   @override
@@ -580,4 +593,14 @@ class AppLocalizationsEo extends AppLocalizations {
 
   @override
   String get clearCompletedDownloads => 'Forigi Kompletigitan Historion';
+
+  @override
+  String get broadcomSessionExpiredTip =>
+      'Broadcom-seanco eksvalidiĝis. Bonvolu reensaluti por generi rajtigitajn elŝutajn ligilojn.';
+
+  @override
+  String get reloginAction => 'Reensaluti';
+
+  @override
+  String get sessionExpiredTitle => 'Seanco Eksvalidiĝis';
 }

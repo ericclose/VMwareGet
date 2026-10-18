@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../models/auth_session.dart';
 import '../models/vmware_product.dart';
 import '../services/catalog_service.dart';
+import '../services/download_service.dart';
+import '../views/login_dialog.dart';
+import 'auth_provider.dart';
 
 class CatalogProvider extends ChangeNotifier {
   final CatalogService _catalogService = CatalogService();
@@ -12,6 +17,7 @@ class CatalogProvider extends ChangeNotifier {
   String _searchQuery = '';
   bool _isSyncing = false;
   String? _syncStatusMessage;
+  bool _isSessionExpired = false;
 
   CatalogProvider() {
     _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
@@ -36,7 +42,15 @@ class CatalogProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isSyncing => _isSyncing;
   String? get syncStatusMessage => _syncStatusMessage;
+  bool get isSessionExpired => _isSessionExpired;
   CatalogService get catalogService => _catalogService;
+
+  void clearSessionExpired() {
+    if (_isSessionExpired) {
+      _isSessionExpired = false;
+      notifyListeners();
+    }
+  }
 
   List<VMwareReleaseItem> get filteredReleases {
     return _catalogService.searchReleases(
@@ -74,14 +88,36 @@ class CatalogProvider extends ChangeNotifier {
     await _catalogService.clearCatalog();
     _selectedRelease = null;
     _searchQuery = '';
+    _isSessionExpired = false;
     _syncStatusMessage = 'Please login or sync to load Broadcom catalog online.';
     notifyListeners();
   }
 
-  Future<void> refreshFromOnline(AuthSession? session) async {
+  Future<void> refreshFromOnline(
+    AuthSession? session, {
+    BuildContext? context,
+  }) async {
     if (session == null) {
       _syncStatusMessage = 'Broadcom session required to fetch online catalog.';
       notifyListeners();
+      if (context != null && context.mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.authRequiredDesc),
+            action: SnackBarAction(
+              label: l10n.signIn,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const LoginDialog(),
+                );
+              },
+            ),
+          ),
+        );
+      }
       return;
     }
     _isSyncing = true;
@@ -89,16 +125,73 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final success = await _catalogService.syncOnlineCatalog(session);
+      final success = await _catalogService.syncOnlineCatalog(
+        session,
+        context: context,
+        onStatusUpdate: (msg) {
+          _syncStatusMessage = msg;
+          notifyListeners();
+        },
+      );
       if (success) {
+        _isSessionExpired = false;
+        if (context != null && context.mounted) {
+          try {
+            Provider.of<AuthProvider>(context, listen: false).clearSessionExpired();
+          } catch (_) {}
+        }
         final items = _catalogService.getReleasesForFamily(_selectedFamily);
-        _syncStatusMessage = 'Catalog synced live from Broadcom (${items.length} releases)';
+        _syncStatusMessage =
+            'Catalog synced live from Broadcom (${items.length} releases, direct links ready)';
         if (items.isNotEmpty) {
           _selectedRelease = items.first;
         }
       } else {
         _syncStatusMessage = _catalogService.lastSyncError ??
             'Unable to fetch online catalog. Please verify session.';
+      }
+    } on BroadcomAuthExpiredException {
+      _isSessionExpired = true;
+      _syncStatusMessage = 'Broadcom session expired. Please log in again.';
+      if (context != null && context.mounted) {
+        try {
+          Provider.of<AuthProvider>(context, listen: false).notifySessionExpired();
+        } catch (_) {}
+        final l10n = AppLocalizations.of(context);
+        final colorScheme = Theme.of(context).colorScheme;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: colorScheme.error,
+            duration: const Duration(seconds: 8),
+            content: Row(
+              children: [
+                const Icon(Icons.lock_clock_outlined, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.broadcomSessionExpiredTip,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(
+              label: l10n.reloginAction,
+              textColor: Colors.amberAccent,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const LoginDialog(),
+                );
+              },
+            ),
+          ),
+        );
       }
     } catch (e) {
       _syncStatusMessage = 'Sync error: $e';

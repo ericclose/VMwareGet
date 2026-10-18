@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_webview_window/desktop_webview_window.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,9 +10,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'android_cookie_service.dart';
 import '../models/auth_session.dart';
 import '../utils/constants.dart';
-import '../utils/json_utils.dart';
 import '../views/mobile_webview_login.dart';
 import 'diagnostic_service.dart';
+import 'download_service.dart';
+import 'catalog_service.dart';
+import 'webview_bridge.dart';
 
 class AuthService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -233,85 +234,13 @@ class AuthService {
   }
 
   /// Dynamically extracts the active Liferay.authToken from the Broadcom support portal.
+  /// (Deprecated: Token is now captured directly from browser window context)
   Future<String?> fetchDynamicCsrfToken(String cookieHeader) async {
-    try {
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-          followRedirects: true,
-          headers: {
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Cookie': cleanCookieString(cookieHeader),
-          },
-        ),
-      );
-      final resp = await dio.get('https://support.broadcom.com/group/ecx/productdownloads');
-      final match = RegExp(r'''Liferay\.authToken\s*=\s*['"]([^'"]+)['"]''').firstMatch(resp.data.toString());
-      if (match != null) {
-        final token = match.group(1)?.trim();
-        if (token != null && token.isNotEmpty) {
-          DiagnosticService.instance.info('Auth', 'Dynamically fetched Liferay.authToken: $token');
-          return token;
-        }
-      }
-    } catch (e) {
-      DiagnosticService.instance.warn('Auth', 'Failed to fetch dynamic CSRF token: $e');
-    }
     return null;
   }
 
   Future<bool> probeSessionValidity(AuthSession session) async {
-    try {
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-          followRedirects: false,
-          validateStatus: (status) => status == 200,
-          headers: {
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Content-Type': 'application/json;charset=UTF-8',
-            'Origin': 'https://support.broadcom.com',
-            'Referer': 'https://support.broadcom.com/group/ecx/productdownloads',
-            'Accept-Language':
-                'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
-          },
-        ),
-      );
-      final cookieHeader = cleanCookieString(session.cookieJar ?? session.sessionToken);
-      String? csrfHeader = session.csrfToken;
-      if (csrfHeader == null || csrfHeader.isEmpty) {
-        csrfHeader = await fetchDynamicCsrfToken(cookieHeader);
-      }
-      if (csrfHeader == null || csrfHeader.isEmpty) {
-        return false;
-      }
-      final resp = await dio.post(
-        'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
-        data: {
-          'subFamily': 'VMware Workstation Pro',
-          'searchVal': '',
-          'language': 'EN',
-          'freeDownloads': true,
-        },
-        options: Options(
-          headers: {
-            'Cookie': cookieHeader,
-            'x-csrf-token': csrfHeader,
-          },
-        ),
-      );
-      final data = parseJsonMap(resp.data);
-      if (resp.statusCode == 200 && data != null && data['success'] == true) {
-        return true;
-      }
-    } catch (_) {}
-    return false;
+    return session.sessionToken.isNotEmpty;
   }
 
   Future<AuthSession> authenticateManual({
@@ -319,6 +248,7 @@ class AuthService {
     required String tokenOrCookie,
     String? displayName,
     String? csrfToken,
+    String? cookieJar,
   }) async {
     String cleanCookie = tokenOrCookie.trim();
     String? extractedCsrf = csrfToken;
@@ -355,9 +285,9 @@ class AuthService {
       email: email.trim(),
       displayName: displayName?.trim().isNotEmpty == true
           ? displayName!.trim()
-          : (email.contains('@') ? email.split('@').first : 'Eric Close'),
+          : (email.contains('@') ? email.split('@').first : 'Broadcom User'),
       sessionToken: cleanCookie,
-      cookieJar: cleanCookie,
+      cookieJar: cookieJar ?? cleanCookie,
       csrfToken: extractedCsrf,
       createdAt: DateTime.now(),
       expiresAt: DateTime.now().add(const Duration(days: 30)),
@@ -365,6 +295,36 @@ class AuthService {
     );
     await saveSession(session);
     return session;
+  }
+
+  static List<Map<String, dynamic>> parseCookieStringToDictList(
+    String cookieStr, {
+    String defaultDomain = '.broadcom.com',
+  }) {
+    final list = <Map<String, dynamic>>[];
+    final parts = cookieStr.split(';');
+    for (final part in parts) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      final eqIdx = trimmed.indexOf('=');
+      if (eqIdx == -1) continue;
+      final name = trimmed.substring(0, eqIdx).trim();
+      final value = trimmed.substring(eqIdx + 1).trim();
+      if (name.isNotEmpty) {
+        final domain = (name.startsWith('JSESSIONID') || name.startsWith('LFR_'))
+            ? 'support.broadcom.com'
+            : defaultDomain;
+        list.add({
+          'name': name,
+          'value': value,
+          'domain': domain,
+          'path': '/',
+          'expiresDate': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch / 1000,
+          'isSecure': true,
+        });
+      }
+    }
+    return list;
   }
 
   Future<bool> launchBroadcomLogin() async {
@@ -447,12 +407,53 @@ class AuthService {
       pollTimer?.cancel();
     }
 
-    void finishWithSession(AuthSession session) {
+    Future<void> finishWithSession(AuthSession session) async {
       if (isCompleted) return;
       isCompleted = true;
       cleanup();
-      DiagnosticService.instance.info('Auth', 'Closing in-app WebView window and completing session capture.');
-      webview.close();
+
+      // 1. Immediately hide window so it does not distract the user
+      try {
+        await webview.setWebviewWindowVisibility(false);
+      } catch (_) {}
+
+      onStatusUpdate?.call('Fetching complete software releases in browser...');
+      DiagnosticService.instance.info(
+        'Auth',
+        'Fetching full software catalog via in-browser fetch before closing window...',
+      );
+
+      // 2. Pre-fetch complete catalog in the live, genuine browser context
+      try {
+        final catResult =
+            await WebviewBridge.instance.fetchFullCatalogInBrowser(webview);
+        if (catResult != null && catResult['results'] is List) {
+          final count = await CatalogService()
+              .ingestBrowserBatchResults(catResult['results'] as List);
+          DiagnosticService.instance.info(
+            'Auth',
+            'Pre-fetched $count releases inside native browser successfully.',
+          );
+        }
+      } catch (e) {
+        DiagnosticService.instance.warn(
+          'Auth',
+          'Notice during in-browser catalog pre-fetch: $e',
+        );
+      }
+
+      // 3. Completely close and destroy native WebView window
+      DiagnosticService.instance.info(
+        'Auth',
+        'Closing and disposing native WebView window now.',
+      );
+      try {
+        webview.close();
+      } catch (_) {}
+
+      // Allow a brief frame delay before completing session to ensure native window detachment completes
+      await Future.delayed(const Duration(milliseconds: 150));
+
       if (!completer.isCompleted) {
         completer.complete(session);
       }
@@ -466,8 +467,11 @@ class AuthService {
       }
     });
 
-    // Check cookies and page authentication state every 1200ms
-    pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) async {
+    int accessSettledTicks = 0;
+    DateTime? lastBridgeAttempt;
+
+    // Check cookies and page authentication state every 500ms for responsive session capture
+    pollTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
       try {
         final cookies = await webview.getAllCookies();
         if (cookies.isEmpty) return;
@@ -486,12 +490,22 @@ class AuthService {
             (() => {
               try {
                 const url = window.location.href;
-                const isAccessSignIn = url.includes('access.broadcom.com') && (url.includes('/signin') || url.includes('/login') || url.includes('/idp/'));
+                const isAccessSignIn = url.includes('access.broadcom.com') && (
+                  url.includes('/signin') ||
+                  url.includes('/login') ||
+                  url.includes('/idp/') ||
+                  url.includes('/oauth2') ||
+                  url.includes('authcomplete') ||
+                  url.includes('/authorize')
+                );
                 const isLogin = isAccessSignIn ||
                                 url.includes('/login') || 
+                                url.includes('/signin') ||
                                 url.includes('auth.broadcom.com') ||
                                 url.includes('login.broadcom.com') ||
-                                url.includes('okta.com');
+                                url.includes('okta.com') ||
+                                url.includes('/oauth2') ||
+                                url.includes('authcomplete');
                 const isAccessPassed = url.includes('access.broadcom.com') && !isAccessSignIn;
                 const isSupport = url.includes('support.broadcom.com') && !isLogin;
                 let csrf = window.Liferay?.authToken || '';
@@ -560,48 +574,34 @@ class AuthService {
           }
         } catch (_) {}
 
-        // If user logged in on access.broadcom.com, navigate to Support Portal to bridge Liferay SSO session
+        if (isLoginPage) {
+          accessSettledTicks = 0;
+        }
+
+        // If user logged in on access.broadcom.com, allow natural SSO redirects to occur.
+        // Only trigger an active bridge navigation if settled and staying on access.broadcom.com for at least 3 seconds.
         if (isAccessSettled && !isSupportPortal) {
-          DiagnosticService.instance.info('Auth', 'Sign-in settled on access.broadcom.com. Navigating to Support Portal for SSO session...');
-          webview.launch(AppConstants.workstationPortalUrl);
+          accessSettledTicks++;
+          final now = DateTime.now();
+          final canBridge = accessSettledTicks >= 6 &&
+              (lastBridgeAttempt == null ||
+                  now.difference(lastBridgeAttempt!) > const Duration(seconds: 15));
+
+          if (canBridge) {
+            lastBridgeAttempt = now;
+            accessSettledTicks = 0;
+            DiagnosticService.instance.info(
+              'Auth',
+              'Sign-in settled on access.broadcom.com. Navigating to Support Portal for SSO session...',
+            );
+            onStatusUpdate?.call('Broadcom sign-in verified. Connecting to Support Portal...');
+            webview.launch(AppConstants.workstationPortalUrl);
+          }
           return;
         }
 
         // Never attempt capture while user is on the login/SSO page
         if (isLoginPage || !isSupportPortal) {
-          return;
-        }
-
-        // Check user sign-in status or presence of software products on page
-        bool hasProductsOnPage = false;
-        try {
-          final jsCheck = await webview.evaluateJavaScript('''
-            (() => {
-              const text = document.body ? document.body.innerText : '';
-              return JSON.stringify({
-                hasProducts: text.includes('VMware Workstation Pro') || text.includes('VMware Fusion') || text.includes('Product Download'),
-                hasUserButton: !!document.querySelector('.user-full-name, .user-name, [data-user-name]') || text.includes('Eric Close')
-              });
-            })()
-          ''');
-          if (jsCheck != null) {
-            String s = jsCheck.toString();
-            if (s.startsWith('"') && s.endsWith('"') && s.length > 2) {
-              s = jsonDecode(s).toString();
-            }
-            final d = jsonDecode(s);
-            if (d is Map && d['hasProducts'] == true) {
-              hasProductsOnPage = true;
-            }
-          }
-        } catch (_) {}
-
-        final bool hasAuthUser = (extractedName != null &&
-                extractedName.isNotEmpty &&
-                extractedName != 'Guest') ||
-            jsIsSignedIn;
-
-        if (!hasAuthUser && !hasProductsOnPage) {
           return;
         }
 
@@ -617,59 +617,33 @@ class AuthService {
           return;
         }
 
+        final bool hasAuthCookies = cleanCookieHeader.contains('SAML_SP_SESSION_KEY') ||
+            cleanCookieHeader.contains('sspsession') ||
+            cleanCookieHeader.contains('LFR_SESSION_STATE_');
+
+        final bool hasAuthUser = (extractedName != null &&
+                extractedName.isNotEmpty &&
+                extractedName != 'Guest') ||
+            jsIsSignedIn;
+
+        // If neither user identity nor auth cookies exist yet, wait for SSO exchange
+        if (!hasAuthUser && !hasAuthCookies) {
+          return;
+        }
+
         onStatusUpdate?.call('Broadcom portal detected. Verifying session...');
 
-        // Strict verification: live API call check
-        bool apiVerified = false;
-        try {
-          final dio = Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 4),
-              receiveTimeout: const Duration(seconds: 4),
-              followRedirects: false, // Disallow 302 redirect to login
-              validateStatus: (status) => status == 200,
-              headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/plain, */*',
-                'Content-Type': 'application/json;charset=UTF-8',
-                'Origin': 'https://support.broadcom.com',
-                'Referer':
-                    'https://support.broadcom.com/group/ecx/productfiles?subFamily=VMware%20Workstation%20Pro',
-                'Cookie': cleanCookieHeader,
-                'x-csrf-token': csrf,
-              },
-            ),
-          );
-
-          final resp = await dio.post(
-            'https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=1',
-            data: {
-              'subFamily': 'VMware Workstation Pro',
-              'searchVal': '',
-              'language': 'EN',
-              'freeDownloads': true,
-            },
-          );
-
-          final map = parseJsonMap(resp.data);
-          if (resp.statusCode == 200 &&
-              map != null &&
-              map['success'] == true) {
-            apiVerified = true;
-          }
-        } catch (_) {}
-
-        // Capture session when API call succeeds OR when authenticated user/catalog is active on support portal
-        final bool isReadyToCapture = apiVerified ||
-            (isSupportPortal && (hasAuthUser || hasProductsOnPage));
+        // Capture session when on Support Portal and authenticated indicators exist
+        final bool isReadyToCapture = !isLoginPage &&
+            isSupportPortal &&
+            ((hasAuthUser && hasAuthCookies) || jsIsSignedIn);
 
         if (isReadyToCapture) {
           String userEmail = (extractedEmail != null && extractedEmail.contains('@'))
               ? extractedEmail
               : (extractedName != null && extractedName.isNotEmpty && extractedName != 'Guest'
                   ? '${extractedName.replaceAll(" ", ".").toLowerCase()}@broadcom.user'
-                  : 'eric.close@broadcom.user');
+                  : 'broadcom.user@broadcom.user');
 
           String displayName = (extractedName != null &&
                   extractedName.isNotEmpty &&
@@ -677,27 +651,221 @@ class AuthService {
               ? extractedName
               : (userEmail.contains('@')
                   ? userEmail.split('@').first
-                  : 'Eric Close');
+                  : 'Broadcom Member');
+
+          final cookieDicts = cookies.map((c) => {
+            'name': c.name,
+            'value': c.value,
+            'domain': c.domain,
+            'path': c.path,
+            'expiresDate': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch / 1000,
+            'isSecure': c.secure,
+            'isHTTPOnly': c.httpOnly,
+          }).toList();
+
+          try {
+            await webview.setCookies(cookieDicts);
+          } catch (_) {}
 
           final session = await authenticateManual(
             email: userEmail,
             tokenOrCookie: cleanCookieHeader,
             displayName: displayName,
             csrfToken: csrf,
+            cookieJar: jsonEncode(cookieDicts),
           );
 
           DiagnosticService.instance.info(
             'Auth',
             'In-App WebView session captured! User: $userEmail ($displayName), CSRF: $csrf',
-            'apiVerified=$apiVerified, hasAuthUser=$hasAuthUser, hasProducts=$hasProductsOnPage',
           );
 
+          // Pre-fetch complete catalog & direct download links before closing window
+          onStatusUpdate?.call('Pre-fetching complete catalog & direct links...');
+          try {
+            final catResult =
+                await WebviewBridge.instance.fetchFullCatalogInBrowser(webview);
+            if (catResult != null && catResult['results'] is List) {
+              final ingestedCount = await CatalogService()
+                  .ingestBrowserBatchResults(catResult['results'] as List);
+              DiagnosticService.instance.info(
+                'Auth',
+                'Pre-fetched $ingestedCount releases with direct links during login.',
+              );
+            }
+          } catch (e) {
+            DiagnosticService.instance.warn('Auth', 'Login pre-fetch notice: $e');
+          }
+
           onStatusUpdate?.call('Login successful! Session captured.');
-          finishWithSession(session);
+          await finishWithSession(session);
         }
       } catch (_) {}
     });
 
     return completer.future;
+  }
+
+  /// Silently synchronizes full product catalog and direct download links using the browser runtime.
+  /// Bypasses Cloudflare bot detection seamlessly and destroys the webview immediately after completion.
+  Future<int> syncCatalogInBrowser({
+    BuildContext? context,
+    void Function(String message)? onStatusUpdate,
+    bool silent = true,
+  }) async {
+    final osName = Platform.operatingSystem;
+    DiagnosticService.instance.info(
+      'Auth',
+      'Initiating in-browser catalog sync on $osName (silent: $silent)',
+    );
+
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      if (context == null) {
+        final cached = CatalogService().getAllReleases().length;
+        if (cached > 0) return cached;
+        DiagnosticService.instance.warn('Auth', 'BuildContext is null for mobile sync, skipping UI-bound sync.');
+        return 0;
+      }
+      final session = await Navigator.of(context).push<AuthSession>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => MobileWebViewLoginScreen(
+            onStatusUpdate: onStatusUpdate,
+          ),
+        ),
+      );
+      final releaseCount = CatalogService().getAllReleases().length;
+      return session != null ? (releaseCount > 0 ? releaseCount : 1) : 0;
+    }
+
+    if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux)) {
+      throw UnsupportedError('In-Browser sync is only supported on Desktop and Mobile.');
+    }
+
+    final isAvailable = await WebviewWindow.isWebviewAvailable();
+    if (!isAvailable) {
+      throw StateError('Desktop WebView runtime is not available on this system.');
+    }
+
+    final winDataDir = Platform.isWindows ? getWindowsWebviewDataDir() : null;
+
+    onStatusUpdate?.call('Connecting to Broadcom secure session in background...');
+    DiagnosticService.instance.info('Auth', 'Creating background sync WebView window...');
+
+    final webview = await WebviewWindow.create(
+      configuration: CreateConfiguration(
+        title: '',
+        windowWidth: silent ? 1 : 1040,
+        windowHeight: silent ? 1 : 760,
+        titleBarHeight: 0,
+        titleBarTopPadding: 0,
+        userDataFolderWindows: winDataDir ?? 'webview_window_WebView2',
+      ),
+    );
+
+    try {
+      final currentSession = await loadSession();
+      if (currentSession != null && currentSession.isValid) {
+        List<Map<String, dynamic>> cookiesToInject = [];
+        if (currentSession.cookieJar != null && currentSession.cookieJar!.trim().startsWith('[')) {
+          try {
+            final parsed = jsonDecode(currentSession.cookieJar!);
+            if (parsed is List) {
+              cookiesToInject = parsed.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+            }
+          } catch (_) {}
+        }
+        if (cookiesToInject.isEmpty) {
+          cookiesToInject = parseCookieStringToDictList(currentSession.sessionToken);
+        }
+        if (cookiesToInject.isNotEmpty) {
+          DiagnosticService.instance.info(
+            'Auth',
+            'Restoring ${cookiesToInject.length} session cookies into background WebView before launching URL...',
+          );
+          try {
+            await webview.setCookies(cookiesToInject);
+          } catch (_) {}
+        }
+      }
+
+      webview.launch(
+        AppConstants.broadcomProductDownloadsUrl,
+        triggerOnUrlRequestEvent: false,
+      );
+
+      final sw = Stopwatch()..start();
+      int ingestedCount = 0;
+
+      while (sw.elapsed < const Duration(seconds: 25)) {
+        await Future.delayed(const Duration(milliseconds: 250));
+
+        // 1. Inspect page status via fast micro-script
+        String? pageState;
+        try {
+          final res = await webview.evaluateJavaScript('''
+            (() => {
+              const url = window.location.href || '';
+              if (url.includes('/c/portal/login') ||
+                  url.includes('access.broadcom.com/signin') ||
+                  url.includes('/login')) {
+                return 'expired';
+              }
+              const hasAuthToken = Boolean(
+                window.Liferay?.authToken ||
+                (window.themeDisplay && typeof window.themeDisplay.getAuthToken === 'function' && window.themeDisplay.getAuthToken())
+              );
+              const isLoaded = document.readyState === 'complete' || document.readyState === 'interactive';
+              if (hasAuthToken && isLoaded) {
+                return 'ready';
+              }
+              return 'loading';
+            })()
+          ''');
+          if (res != null) {
+            pageState = res.toString().replaceAll('"', '').trim();
+          }
+        } catch (_) {}
+
+        if (pageState == 'expired' && sw.elapsed > const Duration(seconds: 2)) {
+          DiagnosticService.instance.warn(
+            'Auth',
+            'Background sync redirected to login portal, session is expired',
+          );
+          throw const BroadcomAuthExpiredException();
+        }
+
+        if (pageState == 'ready') {
+          onStatusUpdate?.call('Fetching complete releases and direct links...');
+          final catResult =
+              await WebviewBridge.instance.fetchFullCatalogInBrowser(webview);
+          if (catResult != null) {
+            if (catResult['expired'] == true) {
+              DiagnosticService.instance.warn(
+                'Auth',
+                'In-browser batch fetch indicated session expired',
+              );
+              throw const BroadcomAuthExpiredException();
+            }
+            if (catResult['results'] is List) {
+              ingestedCount = await CatalogService()
+                  .ingestBrowserBatchResults(catResult['results'] as List);
+              DiagnosticService.instance.info(
+                'Auth',
+                'Silent browser sync ingested $ingestedCount releases successfully.',
+              );
+              break;
+            }
+          }
+        }
+      }
+
+      return ingestedCount;
+    } finally {
+      DiagnosticService.instance.info('Auth', 'Disposing background sync WebView.');
+      try {
+        webview.close();
+      } catch (_) {}
+    }
   }
 }

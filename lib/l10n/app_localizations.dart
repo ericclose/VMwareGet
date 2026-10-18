@@ -412,6 +412,30 @@ abstract class AppLocalizations {
   /// **'Re-verify Hash'**
   String get reVerifyChecksum;
 
+  /// No description provided for @reDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-download'**
+  String get reDownload;
+
+  /// No description provided for @fileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Local file does not exist'**
+  String get fileNotFound;
+
+  /// No description provided for @localFileNotFoundTip.
+  ///
+  /// In en, this message translates to:
+  /// **'The local file was deleted or moved. Click re-download.'**
+  String get localFileNotFoundTip;
+
+  /// No description provided for @statusFileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'File Missing'**
+  String get statusFileNotFound;
+
   /// No description provided for @activeRecentTransfers.
   ///
   /// In en, this message translates to:
@@ -1185,6 +1209,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear Completed History'**
   String get clearCompletedDownloads;
+
+  /// No description provided for @broadcomSessionExpiredTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcom session has expired. Please log in again to generate authorized download links.'**
+  String get broadcomSessionExpiredTip;
+
+  /// No description provided for @reloginAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Log In Again'**
+  String get reloginAction;
+
+  /// No description provided for @sessionExpiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpiredTitle;
 }
 
 class _AppLocalizationsDelegate

@@ -16,8 +16,8 @@ import requests
 from playwright.sync_api import sync_playwright
 
 SESSION_FILE = os.path.join(os.path.dirname(__file__), '.session.json')
-LOGIN_START_URL = 'https://access.broadcom.com/'
 SUPPORT_PORTAL_URL = 'https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true'
+LOGIN_START_URL = SUPPORT_PORTAL_URL
 
 
 def verify_session_against_broadcom(cookies_dict, csrf_token='', email=''):
@@ -30,7 +30,7 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='', email=''):
         'User-Agent': (
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
             'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/155.0.0.0 Safari/537.36'
+            'Chrome/133.0.0.0 Safari/537.36'
         ),
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,zh-CN;q=0.7,zh;q=0.6',
@@ -38,6 +38,12 @@ def verify_session_against_broadcom(cookies_dict, csrf_token='', email=''):
         'Origin': 'https://support.broadcom.com',
         'Referer': SUPPORT_PORTAL_URL,
         'x-csrf-token': csrf_token,
+        'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Dest': 'empty',
     })
     s.cookies.update(cookies_dict)
 
@@ -228,7 +234,7 @@ def run_playwright_login(email='', password=''):
             user_agent=(
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
                 'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/155.0.0.0 Safari/537.36'
+                'Chrome/133.0.0.0 Safari/537.36'
             ),
             viewport={'width': 1280, 'height': 800},
         )

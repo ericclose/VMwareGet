@@ -52,6 +52,10 @@
   "showInFolder": "打开所在文件夹",
   "openInstaller": "打开安装包",
   "reVerifyChecksum": "重新校验",
+  "reDownload": "重新下载",
+  "fileNotFound": "本地文件不存在",
+  "localFileNotFoundTip": "本地安装包已被移动或删除，可重新下载",
+  "statusFileNotFound": "文件不存在",
   "activeRecentTransfers": "传输任务",
   "noDownloadsYet": "暂无传输任务",
   "noDownloadsDesc": "在软件目录中选择对应版本即可发起下载。",
@@ -180,5 +184,8 @@
   "copyDirectDownloadLink": "复制下载直链",
   "copyDirectDownloadLinkSuccess": "安装包下载直链已复制至剪贴板。",
   "generatingDownloadLink": "正在生成授权下载直链...",
-  "clearCompletedDownloads": "清除已完成记录"
+  "clearCompletedDownloads": "清除已完成记录",
+  "broadcomSessionExpiredTip": "Broadcom 登录凭据已过期，请重新登录以换取高速下载直链。",
+  "reloginAction": "重新登录",
+  "sessionExpiredTitle": "登录会话已过期"
 }

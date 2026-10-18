@@ -5,6 +5,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 import '../services/android_cookie_service.dart';
 import '../services/auth_service.dart';
+import '../services/catalog_service.dart';
 import '../services/diagnostic_service.dart';
 import '../utils/constants.dart';
 
@@ -95,13 +96,12 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
     _controller.setUserAgent(
       'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
     );
-    _controller.loadRequest(
-      LoadRequestParams(uri: Uri.parse(AppConstants.broadcomLoginUrl)),
-    );
 
     _webViewWidget = AndroidWebViewWidget(
       AndroidWebViewWidgetCreationParams(controller: _controller),
     );
+
+    _startWebView();
 
     // Poll periodically to monitor login and session transitions
     _pollTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) async {
@@ -111,6 +111,42 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
         await _checkLoginState(currentUrl);
       } catch (_) {}
     });
+  }
+
+  Future<void> _startWebView() async {
+    String targetUrl = AppConstants.broadcomLoginUrl;
+    try {
+      final session = await AuthService().loadSession();
+      if (session != null && session.isValid) {
+        List<Map<String, dynamic>> cookiesToInject = [];
+        if (session.cookieJar != null && session.cookieJar!.trim().startsWith('[')) {
+          try {
+            final parsed = jsonDecode(session.cookieJar!);
+            if (parsed is List) {
+              cookiesToInject = parsed.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+            }
+          } catch (_) {}
+        }
+        if (cookiesToInject.isEmpty) {
+          cookiesToInject = AuthService.parseCookieStringToDictList(session.sessionToken);
+        }
+        if (cookiesToInject.isNotEmpty) {
+          DiagnosticService.instance.info(
+            'Auth-Android',
+            'Pre-injecting ${cookiesToInject.length} session cookies into Android CookieManager...',
+          );
+          await AndroidCookieService.setCookies(cookiesToInject);
+          targetUrl = AppConstants.broadcomProductDownloadsUrl;
+        }
+      }
+    } catch (e) {
+      DiagnosticService.instance.warn('Auth-Android', 'Pre-injection notice: $e');
+    }
+
+    if (!mounted) return;
+    _controller.loadRequest(
+      LoadRequestParams(uri: Uri.parse(targetUrl)),
+    );
   }
 
   @override
@@ -147,10 +183,17 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
     final path = uri.path.toLowerCase();
 
     final isAccessSignIn = host.contains('access.broadcom.com') &&
-        (path.contains('/signin') || path.contains('/login') || path.contains('/idp/'));
+        (path.contains('/signin') ||
+            path.contains('/login') ||
+            path.contains('/idp/') ||
+            path.contains('/oauth2') ||
+            path.contains('authcomplete') ||
+            path.contains('/authorize'));
     final isLoginPage = isAccessSignIn ||
         path.contains('/login') ||
         path.contains('/signin') ||
+        path.contains('/oauth2') ||
+        path.contains('authcomplete') ||
         host.contains('okta.com');
     final isSupportPortal = host.contains('support.broadcom.com');
 
@@ -314,15 +357,16 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
       );
 
       final hasAuthIndicators = force ||
-          isSignedIn ||
           hasSignOut ||
-          (extractedName != null && extractedName.isNotEmpty) ||
-          hasProducts;
+          (isSignedIn &&
+              (extractedName != null &&
+                  extractedName.isNotEmpty &&
+                  extractedName != 'Guest'));
 
       final hasCookies = cleanCookieHeader.isNotEmpty &&
-          (cleanCookieHeader.contains('JSESSIONID') ||
+          (cleanCookieHeader.contains('SAML_SP_SESSION_KEY') ||
               cleanCookieHeader.contains('sspsession') ||
-              cleanCookieHeader.length > 50 ||
+              cleanCookieHeader.contains('LFR_SESSION_STATE_') ||
               force);
 
       if (!hasAuthIndicators || !hasCookies) {
@@ -353,12 +397,197 @@ class _MobileWebViewLoginScreenState extends State<MobileWebViewLoginScreen> {
         'Creating authenticated session for $displayName ($email) with ${cleanCookieHeader.length} cookie bytes',
       );
 
+      final cookieDicts = AuthService.parseCookieStringToDictList(cleanCookieHeader);
+      try {
+        await AndroidCookieService.setCookies(cookieDicts);
+      } catch (_) {}
+
       final session = await AuthService().authenticateManual(
         email: email,
         tokenOrCookie: cleanCookieHeader,
         displayName: displayName,
         csrfToken: extractedCsrf,
+        cookieJar: jsonEncode(cookieDicts),
       );
+
+      // Pre-fetch complete catalog in Android WebView before closing screen
+      try {
+        if (mounted) {
+          setState(() {
+            _status = 'Pre-fetching software catalog in browser...';
+          });
+        }
+        final escapedCsrf = jsonEncode(extractedCsrf ?? '');
+        await _controller.runJavaScript('''
+          (() => {
+            window.__mobile_cat_done = false;
+            window.__mobile_cat_res = null;
+
+            (async () => {
+              try {
+                let csrf = $escapedCsrf;
+                if (!csrf && window.Liferay?.authToken) {
+                  csrf = window.Liferay.authToken;
+                }
+                if (!csrf && window.themeDisplay?.getAuthToken) {
+                  csrf = window.themeDisplay.getAuthToken();
+                }
+                if (!csrf) {
+                  const m = document.documentElement.innerHTML.match(/Liferay\\.authToken\\s*=\\s*['"]([a-zA-Z0-9_-]+)['"]/);
+                  if (m) csrf = m[1];
+                }
+
+                async function postJson(url, payload) {
+                  try {
+                    const resp = await fetch(url, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json;charset=UTF-8',
+                        'Accept': 'application/json, text/plain, */*',
+                        'x-csrf-token': csrf
+                      },
+                      body: JSON.stringify(payload)
+                    });
+                    return await resp.json();
+                  } catch (e) {
+                    return null;
+                  }
+                }
+
+                const [wsSku, fuSku] = await Promise.all([
+                  postJson('https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50', {
+                    subFamily: 'VMware Workstation Pro',
+                    searchVal: '',
+                    language: 'EN',
+                    freeDownloads: true
+                  }),
+                  postJson('https://support.broadcom.com/group/ecx/productdownloads/-/productDownloadsList/getProductSkuDetails?pageNumber=0&pageSize=50', {
+                    subFamily: 'VMware Fusion',
+                    searchVal: '',
+                    language: 'EN',
+                    freeDownloads: true
+                  })
+                ]);
+
+                function extractTargets(skuResp, subFamily) {
+                  const targets = [];
+                  const content = skuResp?.data?.productDetails?.content || [];
+                  for (const grp of content) {
+                    const displayGroup = grp.description || '';
+                    const phantoms = grp.phantomDetails || [];
+                    for (const ph of phantoms) {
+                      const rel = ph.release;
+                      const gen = ph.genLevel || ph.servicePk;
+                      if (rel && gen) {
+                        targets.push({
+                          subFamily: subFamily,
+                          displayGroup: displayGroup,
+                          release: String(rel),
+                          servicePk: String(gen)
+                        });
+                      }
+                    }
+                  }
+                  return targets;
+                }
+
+                const allTargets = [
+                  ...extractTargets(wsSku, 'VMware Workstation Pro'),
+                  ...extractTargets(fuSku, 'VMware Fusion')
+                ];
+
+                const fileResults = await Promise.all(allTargets.map(async (t) => {
+                  const filesResp = await postJson('https://support.broadcom.com/group/ecx/productfiles/-/productFiles/getDownloadableFiles?pageNumber=0&pageSize=50', {
+                    primaryDownloads: true,
+                    otherDownloads: '',
+                    searchQuery: '',
+                    freeDownloads: true,
+                    displayGroup: t.displayGroup,
+                    skuCode: '',
+                    release: t.release,
+                    genLevel: t.servicePk,
+                    language: 'EN',
+                    os: ''
+                  });
+
+                  const packlist = filesResp?.data?.packlistDetails?.content || [];
+                  await Promise.all(packlist.map(async (pack) => {
+                    const fileDetails = pack?.fileDetails || [];
+                    await Promise.all(fileDetails.map(async (f) => {
+                      if (f && f.filePath) {
+                        try {
+                          const orderResp = await postJson('https://support.broadcom.com/group/ecx/productfiles/-/productFiles/createProductDownloadOrder', {
+                            downloadType: 'HTTP',
+                            productName: t.subFamily,
+                            releaseDescription: f.releaseDesc || pack?.description || (t.subFamily === 'VMware Workstation Pro' ? 'VMware Workstation Pro (For Windows)' : 'VMware Fusion (for Intel-based and Apple silicon Macs)'),
+                            skuCode: '',
+                            displayGroup: t.displayGroup,
+                            release: t.release,
+                            genLevel: t.servicePk,
+                            language: 'EN',
+                            os: '',
+                            eulaId: 17290717,
+                            accessToken: false,
+                            siteId: '105246',
+                            orderedFiles: [{
+                              filePath: f.filePath,
+                              fileSize: f.fileSize
+                            }]
+                          });
+                          if (orderResp && orderResp.data && orderResp.data.downloadUrl) {
+                            f.directDownloadUrl = orderResp.data.downloadUrl;
+                          }
+                        } catch (_) {}
+                      }
+                    }));
+                  }));
+
+                  return {
+                    target: t,
+                    filesData: filesResp
+                  };
+                }));
+
+                window.__mobile_cat_res = JSON.stringify({ success: true, results: fileResults });
+              } catch(e) {
+                window.__mobile_cat_res = JSON.stringify({ success: false, error: e.toString() });
+              } finally {
+                window.__mobile_cat_done = true;
+              }
+            })();
+          })();
+        ''');
+
+        final sw = Stopwatch()..start();
+        String? resStr;
+        while (sw.elapsed < const Duration(seconds: 40)) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (!mounted) break;
+          final isDoneRaw = await _controller.runJavaScriptReturningResult('window.__mobile_cat_done === true');
+          final isDone = isDoneRaw.toString().replaceAll('"', '').trim();
+          if (isDone == 'true') {
+            final resRaw = await _controller.runJavaScriptReturningResult('window.__mobile_cat_res');
+            resStr = resRaw.toString();
+            break;
+          }
+        }
+
+        if (resStr != null && resStr.isNotEmpty && resStr != 'null') {
+          String s = resStr;
+          if (s.startsWith('"') && s.endsWith('"') && s.length > 2) {
+            try {
+              s = jsonDecode(s).toString();
+            } catch (_) {}
+          }
+          final decoded = jsonDecode(s);
+          if (decoded is Map && decoded['results'] is List) {
+            final count = await CatalogService().ingestBrowserBatchResults(decoded['results'] as List);
+            DiagnosticService.instance.info('Auth-Android', 'Pre-fetched $count releases inside Android WebView');
+          }
+        }
+      } catch (e) {
+        DiagnosticService.instance.warn('Auth-Android', 'Mobile catalog pre-fetch notice: $e');
+      }
 
       if (mounted) {
         Navigator.of(context).pop(session);

@@ -302,4 +302,14 @@ class WebviewImpl extends Webview {
             .toList() ??
         [];
   }
+
+  @override
+  Future<void> setCookies(List<Map<String, dynamic>> cookies) async {
+    try {
+      await channel.invokeMethod("setCookies", {
+        "viewId": viewId,
+        "cookies": cookies,
+      });
+    } catch (_) {}
+  }
 }

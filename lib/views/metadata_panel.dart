@@ -11,6 +11,8 @@ import '../providers/auth_provider.dart';
 import '../providers/download_provider.dart';
 import '../widgets/checksum_badge.dart';
 import '../widgets/download_dir_dialog.dart';
+import '../services/download_service.dart';
+import 'login_dialog.dart';
 
 class MetadataPanel extends StatelessWidget {
   final VMwareReleaseItem? release;
@@ -34,6 +36,44 @@ class MetadataPanel extends StatelessWidget {
     );
   }
 
+  void _showSessionExpiredPrompt(BuildContext context, AppLocalizations l10n) {
+    final colorScheme = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: colorScheme.error,
+        content: Row(
+          children: [
+            const Icon(Icons.lock_clock_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.broadcomSessionExpiredTip,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: l10n.reloginAction,
+          textColor: Colors.amberAccent,
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => const LoginDialog(),
+            );
+          },
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Future<void> _copyDownloadLink(
     BuildContext context,
     VMwareReleaseItem release,
@@ -42,7 +82,14 @@ class MetadataPanel extends StatelessWidget {
   ) async {
     final l10n = AppLocalizations.of(context);
     final scaffold = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
 
+    if (session == null && release.filePath != null) {
+      _showSessionExpiredPrompt(context, l10n);
+      return;
+    }
+
+    scaffold.hideCurrentSnackBar();
     scaffold.showSnackBar(
       SnackBar(
         content: Row(
@@ -59,26 +106,42 @@ class MetadataPanel extends StatelessWidget {
             Text(l10n.generatingDownloadLink),
           ],
         ),
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
       ),
     );
 
-    final url = await downloadProvider.resolveDownloadUrl(
-      release: release,
-      session: session,
-    );
+    try {
+      final url = await downloadProvider.resolveDownloadUrl(
+        release: release,
+        session: session,
+      );
 
-    await Clipboard.setData(ClipboardData(text: url));
+      await Clipboard.setData(ClipboardData(text: url));
 
-    scaffold.hideCurrentSnackBar();
-    scaffold.showSnackBar(
-      SnackBar(
-        content: Text(l10n.copyDirectDownloadLinkSuccess),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      scaffold.hideCurrentSnackBar();
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text(l10n.copyDirectDownloadLinkSuccess),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } on BroadcomAuthExpiredException catch (_) {
+      scaffold.hideCurrentSnackBar();
+      if (context.mounted) {
+        _showSessionExpiredPrompt(context, l10n);
+      }
+    } catch (e) {
+      scaffold.hideCurrentSnackBar();
+      scaffold.showSnackBar(
+        SnackBar(
+          content: Text('Failed: $e'),
+          backgroundColor: theme.colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -200,6 +263,10 @@ class MetadataPanel extends StatelessWidget {
                           ),
                         ),
                         onPressed: () async {
+                          if (authSession == null && item.filePath != null) {
+                            _showSessionExpiredPrompt(context, l10n);
+                            return;
+                          }
                           final confirmed =
                               await DownloadDirDialog.showIfNeeded(context);
                           if (!confirmed) return;
@@ -208,6 +275,11 @@ class MetadataPanel extends StatelessWidget {
                             session: authSession,
                             sessionCookie: authSession?.cookieJar ??
                                 authSession?.sessionToken,
+                            onAuthExpired: () {
+                              if (context.mounted) {
+                                _showSessionExpiredPrompt(context, l10n);
+                              }
+                            },
                           );
                           onNavigateToDownloads();
                         },
@@ -251,6 +323,10 @@ class MetadataPanel extends StatelessWidget {
                           ),
                         ),
                         onPressed: () async {
+                          if (authSession == null && item.filePath != null) {
+                            _showSessionExpiredPrompt(context, l10n);
+                            return;
+                          }
                           final confirmed =
                               await DownloadDirDialog.showIfNeeded(context);
                           if (!confirmed) return;
@@ -259,6 +335,11 @@ class MetadataPanel extends StatelessWidget {
                             session: authSession,
                             sessionCookie: authSession?.cookieJar ??
                                 authSession?.sessionToken,
+                            onAuthExpired: () {
+                              if (context.mounted) {
+                                _showSessionExpiredPrompt(context, l10n);
+                              }
+                            },
                           );
                           onNavigateToDownloads();
                         },
@@ -287,53 +368,101 @@ class MetadataPanel extends StatelessWidget {
               }
 
               // downloadItem != null
+              final fileExists = File(downloadItem.destinationPath).existsSync();
+              final isItemVerifying = downloadItem.status == DownloadStatus.verifying ||
+                  downloadItem.verificationStatus == VerificationStatus.verifying;
+              final isItemCompleted = downloadItem.status == DownloadStatus.completed && !isItemVerifying;
+              final isItemMissing = isItemCompleted && !fileExists;
+              final isItemMismatch = isItemCompleted &&
+                  fileExists &&
+                  downloadItem.verificationStatus == VerificationStatus.failedMismatch;
+              final isItemPassed = isItemCompleted &&
+                  fileExists &&
+                  downloadItem.verificationStatus == VerificationStatus.passed;
+
+              Color bannerBg;
+              Color bannerBorder;
+              IconData bannerIcon;
+              Color iconColor;
+              String bannerTitle;
+              String bannerSubtitle;
+
+              if (isItemVerifying) {
+                bannerBg = Colors.amber.withValues(alpha: 0.15);
+                bannerBorder = Colors.amber.withValues(alpha: 0.5);
+                bannerIcon = Icons.security_rounded;
+                iconColor = Colors.amber.shade800;
+                bannerTitle = l10n.statusVerifying;
+                bannerSubtitle = l10n.statusVerifying;
+              } else if (isItemMissing) {
+                bannerBg = colorScheme.errorContainer.withValues(alpha: 0.3);
+                bannerBorder = colorScheme.error.withValues(alpha: 0.5);
+                bannerIcon = Icons.file_copy_outlined;
+                iconColor = colorScheme.error;
+                bannerTitle = l10n.statusFileNotFound;
+                bannerSubtitle = l10n.localFileNotFoundTip;
+              } else if (isItemMismatch) {
+                bannerBg = colorScheme.errorContainer.withValues(alpha: 0.3);
+                bannerBorder = colorScheme.error.withValues(alpha: 0.5);
+                bannerIcon = Icons.gpp_bad_rounded;
+                iconColor = colorScheme.error;
+                bannerTitle = l10n.statusMismatch;
+                bannerSubtitle = downloadItem.errorMessage ?? l10n.statusMismatch;
+              } else if (isItemPassed) {
+                bannerBg = Colors.green.withValues(alpha: 0.15);
+                bannerBorder = Colors.green.withValues(alpha: 0.5);
+                bannerIcon = Icons.check_circle_rounded;
+                iconColor = Colors.green;
+                bannerTitle = l10n.packageDownloaded;
+                bannerSubtitle = l10n.verifiedAgainstChecksums;
+              } else if (isItemCompleted) {
+                bannerBg = Colors.green.withValues(alpha: 0.15);
+                bannerBorder = Colors.green.withValues(alpha: 0.5);
+                bannerIcon = Icons.check_circle_rounded;
+                iconColor = Colors.green;
+                bannerTitle = l10n.packageDownloaded;
+                bannerSubtitle = l10n.statusCompleted;
+              } else {
+                bannerBg = colorScheme.primaryContainer.withValues(alpha: 0.4);
+                bannerBorder = colorScheme.primary.withValues(alpha: 0.5);
+                bannerIcon = Icons.downloading_rounded;
+                iconColor = colorScheme.primary;
+                bannerTitle = '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)';
+                bannerSubtitle = downloadItem.formattedSpeed;
+              }
+
               if (isCompact) {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: downloadItem.status == DownloadStatus.completed
-                        ? Colors.green.withValues(alpha: 0.15)
-                        : colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    color: bannerBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: downloadItem.status == DownloadStatus.completed
-                          ? Colors.green.withValues(alpha: 0.5)
-                          : colorScheme.primary.withValues(alpha: 0.5),
-                    ),
+                    border: Border.all(color: bannerBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
-                          Icon(
-                            downloadItem.status == DownloadStatus.completed
-                                ? Icons.check_circle_rounded
-                                : Icons.downloading_rounded,
-                            color: downloadItem.status == DownloadStatus.completed
-                                ? Colors.green
-                                : colorScheme.primary,
-                          ),
+                          Icon(bannerIcon, color: iconColor),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  downloadItem.status == DownloadStatus.completed
-                                      ? l10n.packageDownloaded
-                                      : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
+                                  bannerTitle,
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
-                                  downloadItem.status == DownloadStatus.completed
-                                      ? l10n.verifiedAgainstChecksums
-                                      : downloadItem.formattedSpeed,
+                                  bannerSubtitle,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -356,7 +485,19 @@ class MetadataPanel extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 6,
                         children: [
-                          if (downloadItem.status == DownloadStatus.completed)
+                          if (isItemMissing || isItemMismatch)
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: Text(l10n.reDownload),
+                              onPressed: () => downloadProvider.redownload(
+                                id: downloadItem.id,
+                                session: authSession,
+                              ),
+                            )
+                          else if (isItemCompleted)
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
                                 visualDensity: VisualDensity.compact,
@@ -387,46 +528,31 @@ class MetadataPanel extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: downloadItem.status == DownloadStatus.completed
-                      ? Colors.green.withValues(alpha: 0.15)
-                      : colorScheme.primaryContainer.withValues(alpha: 0.4),
+                  color: bannerBg,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: downloadItem.status == DownloadStatus.completed
-                        ? Colors.green.withValues(alpha: 0.5)
-                        : colorScheme.primary.withValues(alpha: 0.5),
-                  ),
+                  border: Border.all(color: bannerBorder),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      downloadItem.status == DownloadStatus.completed
-                          ? Icons.check_circle_rounded
-                          : Icons.downloading_rounded,
-                      color: downloadItem.status == DownloadStatus.completed
-                          ? Colors.green
-                          : colorScheme.primary,
-                    ),
+                    Icon(bannerIcon, color: iconColor),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            downloadItem.status == DownloadStatus.completed
-                                ? l10n.packageDownloaded
-                                : '${l10n.statusDownloading} (${(downloadItem.progress * 100).toStringAsFixed(0)}%)',
+                            bannerTitle,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            downloadItem.status == DownloadStatus.completed
-                                ? l10n.verifiedAgainstChecksums
-                                : downloadItem.formattedSpeed,
+                            bannerSubtitle,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -442,7 +568,20 @@ class MetadataPanel extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    if (downloadItem.status == DownloadStatus.completed) ...[
+                    if (isItemMissing || isItemMismatch) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(l10n.reDownload),
+                        onPressed: () => downloadProvider.redownload(
+                          id: downloadItem.id,
+                          session: authSession,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ] else if (isItemCompleted) ...[
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           visualDensity: VisualDensity.compact,

@@ -52,6 +52,10 @@
   "showInFolder": "Montri en Dosierujo",
   "openInstaller": "Malfermi Instalilon",
   "reVerifyChecksum": "Rekontroli Haketkodon",
+  "reDownload": "Reduelŝuti",
+  "fileNotFound": "Loka dosiero ne ekzistas",
+  "localFileNotFoundTip": "La loka dosiero estis forigita aŭ movita. Klaku por reduelŝuti.",
+  "statusFileNotFound": "Dosiero Manki",
   "activeRecentTransfers": "Aktivaj kaj Lastaj Elŝutoj",
   "noDownloadsYet": "Neniuj Elŝutoj Ankoraŭ",
   "noDownloadsDesc": "Elektu version en la katalogo por komenci elŝuton.",
@@ -180,5 +184,8 @@
   "copyDirectDownloadLink": "Kopii Rektan Ligilon",
   "copyDirectDownloadLinkSuccess": "Rekta elŝuta ligilo kopiita al tondujo.",
   "generatingDownloadLink": "Generante rajtigitan elŝutan ligilon...",
-  "clearCompletedDownloads": "Forigi Kompletigitan Historion"
+  "clearCompletedDownloads": "Forigi Kompletigitan Historion",
+  "broadcomSessionExpiredTip": "Broadcom-seanco eksvalidiĝis. Bonvolu reensaluti por generi rajtigitajn elŝutajn ligilojn.",
+  "reloginAction": "Reensaluti",
+  "sessionExpiredTitle": "Seanco Eksvalidiĝis"
 }

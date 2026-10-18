@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vmwareget/models/download_item.dart';
 import 'package:vmwareget/models/vmware_product.dart';
 import 'package:vmwareget/providers/download_provider.dart';
+import 'package:vmwareget/services/download_service.dart';
 import 'package:vmwareget/services/folder_picker_service.dart';
 import 'package:vmwareget/utils/constants.dart';
 
@@ -184,6 +185,170 @@ void main() {
       final mocked = await FolderPickerService.pickDirectory(prompt: 'Test Directory');
       expect(mocked, equals('/test/mock/downloads'));
       FolderPickerService.mockDirectoryForTesting = null;
+    });
+
+    test('resolveDownloadUrl throws BroadcomAuthExpiredException when session is null for protected release', () async {
+      final provider = DownloadProvider();
+      await provider.initFuture;
+
+      const protectedRelease = VMwareReleaseItem(
+        id: 'workstation-17-win',
+        family: VMwareProductFamily.workstationPro,
+        platform: VMwarePlatform.windows,
+        platformLabel: 'Windows 64-bit',
+        version: '17.6.0',
+        buildNumber: '24238078',
+        fileName: 'VMware-workstation-full-17.6.0-24238078.exe',
+        fileSize: '600 MB',
+        fileSizeBytes: 600000000,
+        releaseDate: '2024-09-03',
+        lastUpdated: '2024-09-03',
+        sha256: 'abc123',
+        md5: 'def456',
+        officialDownloadUrl: 'https://support.broadcom.com/downloads',
+        notes: '',
+        filePath: '/files/vmware-workstation.exe',
+        displayGroup: 'Workstation',
+      );
+
+      expect(
+        () => provider.resolveDownloadUrl(release: protectedRelease, session: null),
+        throwsA(isA<BroadcomAuthExpiredException>()),
+      );
+    });
+
+    test('startDownload invokes onAuthExpired callback when session is null for protected release', () async {
+      final provider = DownloadProvider();
+      await provider.initFuture;
+
+      const protectedRelease = VMwareReleaseItem(
+        id: 'fusion-13-mac-test',
+        family: VMwareProductFamily.fusion,
+        platform: VMwarePlatform.macos,
+        platformLabel: 'macOS Universal',
+        version: '13.6.0',
+        buildNumber: '24238079',
+        fileName: 'VMware-Fusion-13.6.0.dmg',
+        fileSize: '700 MB',
+        fileSizeBytes: 700000000,
+        releaseDate: '2024-09-03',
+        lastUpdated: '2024-09-03',
+        sha256: 'abc123',
+        md5: 'def456',
+        officialDownloadUrl: 'https://support.broadcom.com/downloads',
+        notes: '',
+        filePath: '/files/vmware-fusion.dmg',
+        displayGroup: 'Fusion',
+      );
+
+      bool expiredTriggered = false;
+      await provider.startDownload(
+        release: protectedRelease,
+        session: null,
+        onAuthExpired: () {
+          expiredTriggered = true;
+        },
+      );
+
+      expect(expiredTriggered, isTrue);
+    });
+
+    test('openDownloadedFile and reVerifyChecksum detect missing file and update error state', () async {
+      final provider = DownloadProvider();
+      await provider.initFuture;
+
+      const testRelease = VMwareReleaseItem(
+        id: 'missing-file-test',
+        family: VMwareProductFamily.workstationPro,
+        platform: VMwarePlatform.windows,
+        platformLabel: 'Windows x64',
+        version: '17.6.0',
+        buildNumber: '123456',
+        fileName: 'nonexistent-installer.exe',
+        fileSize: '500 MB',
+        fileSizeBytes: 500000000,
+        releaseDate: '2024-09-03',
+        lastUpdated: '2024-09-03',
+        sha256: 'abc123',
+        md5: 'def456',
+        officialDownloadUrl: 'https://cdn.example.com/test.exe',
+      );
+
+      final item = DownloadItem(
+        id: 'missing-file-test',
+        release: testRelease,
+        destinationPath: '/tmp/nonexistent_test_dir/nonexistent-installer.exe',
+        status: DownloadStatus.completed,
+        verificationStatus: VerificationStatus.passed,
+        downloadedBytes: 500000000,
+        totalBytes: 500000000,
+        startedAt: DateTime.now(),
+      );
+
+      SharedPreferences.setMockInitialValues({
+        AppConstants.storageKeyDownloadHistory: jsonEncode([item.toJson()]),
+      });
+
+      final newProvider = DownloadProvider();
+      await newProvider.initFuture;
+
+      final opened = await newProvider.openDownloadedFile('missing-file-test');
+      expect(opened, isFalse);
+      expect(newProvider.getItemForRelease('missing-file-test')!.errorMessage, contains('does not exist'));
+
+      await newProvider.reVerifyChecksum('missing-file-test');
+      expect(newProvider.getItemForRelease('missing-file-test')!.verificationStatus, equals(VerificationStatus.failedMismatch));
+    });
+
+    test('redownload resets item progress, clears direct link, and resets status', () async {
+      final provider = DownloadProvider();
+      await provider.initFuture;
+
+      const testRelease = VMwareReleaseItem(
+        id: 'redownload-test',
+        family: VMwareProductFamily.workstationPro,
+        platform: VMwarePlatform.windows,
+        platformLabel: 'Windows x64',
+        version: '17.6.0',
+        buildNumber: '123456',
+        fileName: 'redownload-installer.exe',
+        fileSize: '500 MB',
+        fileSizeBytes: 500000000,
+        releaseDate: '2024-09-03',
+        lastUpdated: '2024-09-03',
+        sha256: 'abc123',
+        md5: 'def456',
+        officialDownloadUrl: 'https://cdn.example.com/test.exe',
+      );
+
+      final item = DownloadItem(
+        id: 'redownload-test',
+        release: testRelease,
+        destinationPath: '/tmp/redownload-installer.exe',
+        status: DownloadStatus.completed,
+        verificationStatus: VerificationStatus.failedMismatch,
+        downloadedBytes: 500000000,
+        totalBytes: 500000000,
+        startedAt: DateTime.now(),
+        directDownloadUrl: 'https://expired.example.com/link',
+        errorMessage: 'Checksum mismatch',
+      );
+
+      SharedPreferences.setMockInitialValues({
+        AppConstants.storageKeyDownloadHistory: jsonEncode([item.toJson()]),
+      });
+
+      final newProvider = DownloadProvider();
+      await newProvider.initFuture;
+
+      await newProvider.redownload(
+        id: 'redownload-test',
+        session: null,
+      );
+
+      final updated = newProvider.getItemForRelease('redownload-test')!;
+      expect(updated.downloadedBytes, equals(0));
+      expect(updated.verificationStatus, equals(VerificationStatus.notStarted));
     });
   });
 }

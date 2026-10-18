@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -28,7 +30,15 @@ class _DashboardViewState extends State<DashboardView> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.isAuthenticated && auth.currentSession != null) {
         final catalog = Provider.of<CatalogProvider>(context, listen: false);
-        catalog.refreshFromOnline(auth.currentSession);
+        // Only trigger automatic sync catalog upon cold startup after quitting and reopening the app.
+        // During initial login, the webview already completed catalog pre-fetch.
+        if (auth.consumeStartupSyncNeeded()) {
+          if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) {
+            if (mounted) {
+              catalog.refreshFromOnline(auth.currentSession, context: context);
+            }
+          }
+        }
       }
     });
   }
@@ -137,6 +147,26 @@ class _DashboardViewState extends State<DashboardView> {
 
               // Quick Account & Session Menu with Fast Sign-out
               if (authProvider.isAuthenticated) ...[
+                if (authProvider.isSessionExpired) ...[
+                  ActionChip(
+                    avatar: Icon(Icons.lock_clock_outlined, size: 16, color: colorScheme.error),
+                    label: Text(
+                      l10n.sessionExpiredTitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.error,
+                      ),
+                    ),
+                    backgroundColor: colorScheme.errorContainer.withValues(alpha: 0.6),
+                    side: BorderSide(color: colorScheme.error.withValues(alpha: 0.4)),
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const LoginDialog(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 PopupMenuButton<String>(
                   tooltip: l10n.accountOptions,
                   offset: const Offset(0, 48),
@@ -146,18 +176,28 @@ class _DashboardViewState extends State<DashboardView> {
                   icon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: colorScheme.primaryContainer,
-                        child: Text(
-                          ((authProvider.currentSession?.displayName.isNotEmpty ?? false)
-                                  ? authProvider.currentSession!.displayName[0]
-                                  : 'U')
-                              .toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onPrimaryContainer,
+                      Badge(
+                        isLabelVisible: authProvider.isSessionExpired,
+                        backgroundColor: colorScheme.error,
+                        alignment: Alignment.bottomRight,
+                        smallSize: 8,
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: authProvider.isSessionExpired
+                              ? colorScheme.errorContainer
+                              : colorScheme.primaryContainer,
+                          child: Text(
+                            ((authProvider.currentSession?.displayName.isNotEmpty ?? false)
+                                    ? authProvider.currentSession!.displayName[0]
+                                    : 'U')
+                                .toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: authProvider.isSessionExpired
+                                  ? colorScheme.onErrorContainer
+                                  : colorScheme.onPrimaryContainer,
+                            ),
                           ),
                         ),
                       ),
@@ -170,7 +210,12 @@ class _DashboardViewState extends State<DashboardView> {
                     ],
                   ),
                   onSelected: (value) async {
-                    if (value == 'settings') {
+                    if (value == 'relogin') {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const LoginDialog(),
+                      );
+                    } else if (value == 'settings') {
                       setState(() => _currentIndex = 2);
                     } else if (value == 'logout') {
                       final catalogProvider = Provider.of<CatalogProvider>(context, listen: false);
@@ -227,6 +272,22 @@ class _DashboardViewState extends State<DashboardView> {
                       ),
                     ),
                     const PopupMenuDivider(),
+                    if (authProvider.isSessionExpired) ...[
+                      PopupMenuItem<String>(
+                        value: 'relogin',
+                        child: Row(
+                          children: [
+                            Icon(Icons.login_rounded, size: 18, color: colorScheme.error),
+                            const SizedBox(width: 10),
+                            Text(
+                              l10n.reloginAction,
+                              style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                    ],
                     PopupMenuItem<String>(
                       value: 'settings',
                       child: Row(

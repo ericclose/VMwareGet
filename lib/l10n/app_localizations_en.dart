@@ -169,6 +169,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reVerifyChecksum => 'Re-verify Hash';
 
   @override
+  String get reDownload => 'Re-download';
+
+  @override
+  String get fileNotFound => 'Local file does not exist';
+
+  @override
+  String get localFileNotFoundTip =>
+      'The local file was deleted or moved. Click re-download.';
+
+  @override
+  String get statusFileNotFound => 'File Missing';
+
+  @override
   String get activeRecentTransfers => 'Active & Recent Transfers';
 
   @override
@@ -584,4 +597,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearCompletedDownloads => 'Clear Completed History';
+
+  @override
+  String get broadcomSessionExpiredTip =>
+      'Broadcom session has expired. Please log in again to generate authorized download links.';
+
+  @override
+  String get reloginAction => 'Log In Again';
+
+  @override
+  String get sessionExpiredTitle => 'Session Expired';
 }

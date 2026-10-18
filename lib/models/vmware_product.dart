@@ -33,6 +33,7 @@ class VMwareReleaseItem {
   final int? eulaId;
   final String? releaseDesc;
   final bool isOnlineFetched;
+  final String? directDownloadUrl;
 
   const VMwareReleaseItem({
     required this.id,
@@ -56,6 +57,7 @@ class VMwareReleaseItem {
     this.eulaId,
     this.releaseDesc,
     this.isOnlineFetched = false,
+    this.directDownloadUrl,
   });
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +82,7 @@ class VMwareReleaseItem {
         'eulaId': eulaId,
         'releaseDesc': releaseDesc,
         'isOnlineFetched': isOnlineFetched,
+        'directDownloadUrl': directDownloadUrl,
       };
 
   factory VMwareReleaseItem.fromJson(Map<String, dynamic> json) {
@@ -117,6 +120,7 @@ class VMwareReleaseItem {
       eulaId: json['eulaId'] as int?,
       releaseDesc: json['releaseDesc'] as String?,
       isOnlineFetched: json['isOnlineFetched'] as bool? ?? false,
+      directDownloadUrl: json['directDownloadUrl'] as String?,
     );
   }
 }

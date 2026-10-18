@@ -61,7 +61,10 @@ class _LoginDialogState extends State<LoginDialog> {
       });
       if (success) {
         final catalog = Provider.of<CatalogProvider>(context, listen: false);
-        catalog.refreshFromOnline(authProvider.currentSession);
+        await catalog.catalogService.loadCachedCatalog();
+        if (!mounted) return;
+        catalog.selectFamily(catalog.selectedFamily);
+        catalog.clearSessionExpired();
         Navigator.of(context).pop(true);
       } else if (authProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +131,14 @@ class _LoginDialogState extends State<LoginDialog> {
       setState(() => _isSubmitting = false);
       if (success) {
         final catalog = Provider.of<CatalogProvider>(context, listen: false);
-        catalog.refreshFromOnline(authProvider.currentSession);
+        final hasCached = await catalog.catalogService.loadCachedCatalog();
+        if (!mounted) return;
+        if (!hasCached) {
+          catalog.refreshFromOnline(authProvider.currentSession, context: context);
+        } else {
+          catalog.selectFamily(catalog.selectedFamily);
+          catalog.clearSessionExpired();
+        }
         Navigator.of(context).pop(true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,7 +183,14 @@ class _LoginDialogState extends State<LoginDialog> {
       setState(() => _isSubmitting = false);
       if (success) {
         final catalog = Provider.of<CatalogProvider>(context, listen: false);
-        catalog.refreshFromOnline(authProvider.currentSession);
+        final hasCached = await catalog.catalogService.loadCachedCatalog();
+        if (!mounted) return;
+        if (!hasCached) {
+          catalog.refreshFromOnline(authProvider.currentSession, context: context);
+        } else {
+          catalog.selectFamily(catalog.selectedFamily);
+          catalog.clearSessionExpired();
+        }
         Navigator.of(context).pop(true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -198,7 +215,10 @@ class _LoginDialogState extends State<LoginDialog> {
 
     if (mounted) {
       final catalog = Provider.of<CatalogProvider>(context, listen: false);
-      catalog.refreshFromOnline(authProvider.currentSession);
+      await catalog.catalogService.loadCachedCatalog();
+      if (!mounted) return;
+      catalog.selectFamily(catalog.selectedFamily);
+      catalog.clearSessionExpired();
       Navigator.of(context).pop(true);
     }
   }

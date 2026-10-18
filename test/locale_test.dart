@@ -63,9 +63,12 @@ void main() {
       expect(l10nEn.speedLabel, equals('Speed'));
       expect(l10nEn.etaLabel, equals('ETA'));
       expect(l10nEn.recommended, equals('Recommended'));
+      expect(l10nEn.reDownload, equals('Re-download'));
+      expect(l10nEn.fileNotFound, equals('Local file does not exist'));
+      expect(l10nEn.statusFileNotFound, equals('File Missing'));
     });
 
-    test('AppLocalizations delivers refined Chinese strings (信达雅)', () {
+    test('AppLocalizations delivers refined Chinese strings', () {
       final l10nZh = lookupAppLocalizations(const Locale('zh'));
       expect(l10nZh.catalog, equals('软件目录'));
       expect(l10nZh.downloads, equals('传输管理'));
@@ -83,6 +86,9 @@ void main() {
       expect(l10nZh.speedLabel, equals('速率'));
       expect(l10nZh.etaLabel, equals('预计剩余'));
       expect(l10nZh.recommended, equals('推荐'));
+      expect(l10nZh.reDownload, equals('重新下载'));
+      expect(l10nZh.fileNotFound, equals('本地文件不存在'));
+      expect(l10nZh.statusFileNotFound, equals('文件不存在'));
     });
 
     test('AppLocalizations delivers pure Esperanto strings (eo)', () {
@@ -103,6 +109,9 @@ void main() {
       expect(l10nEo.speedLabel, equals('Rapido'));
       expect(l10nEo.etaLabel, equals('Restas'));
       expect(l10nEo.recommended, equals('Rekomendita'));
+      expect(l10nEo.reDownload, equals('Reduelŝuti'));
+      expect(l10nEo.fileNotFound, equals('Loka dosiero ne ekzistas'));
+      expect(l10nEo.statusFileNotFound, equals('Dosiero Manki'));
     });
 
     testWidgets('MaterialApp renders with Locale eo without crashing', (tester) async {

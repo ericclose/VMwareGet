@@ -40,7 +40,7 @@
 - 🔐 **智能身份认证**：内置开箱即用的内嵌浏览器快捷登录（支持 AuthHub 单点登录桥接与动态 CSRF Token 嗅探），亦支持手动 cURL / Cookie 导入。
 - 🛡️ **流式哈希校验**：安装包落盘后自动进行 SHA-256 与 MD5 真实哈希比对，杜绝网络损坏或镜像篡改。
 - 📱 **多端原生适配**：针对 macOS（提供可直接拖拽至 Applications 的 DMG）、Windows 10/11 与 Android 手机界面进行了深度自适应布局优化。
-- 🎨 **现代多语言 UI**：遵循 Material Design 3 规范，支持深色/浅色自适应模式，内置简体中文（信达雅）、English 与 Esperanto 多语言切换。
+- 🎨 **现代多语言 UI**：遵循 Material Design 3 规范，支持深色/浅色自适应模式，内置简体中文、English 与 Esperanto 多语言切换。
 
 ---
 

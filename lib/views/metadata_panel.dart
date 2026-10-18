@@ -480,43 +480,48 @@ class MetadataPanel extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 8,
-                        runSpacing: 6,
+                      Row(
                         children: [
                           if (isItemMissing || isItemMismatch)
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: Text(l10n.reDownload),
-                              onPressed: () => downloadProvider.redownload(
-                                id: downloadItem.id,
-                                session: authSession,
+                            Expanded(
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: Text(l10n.reDownload),
+                                onPressed: () => downloadProvider.redownload(
+                                  id: downloadItem.id,
+                                  session: authSession,
+                                ),
                               ),
                             )
                           else if (isItemCompleted)
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.folder_open_rounded, size: 16),
+                                label: Text(
+                                  Platform.isMacOS
+                                      ? l10n.showInFinder
+                                      : l10n.showInFolder,
+                                ),
+                                onPressed: () => downloadProvider
+                                    .openContainingFolder(downloadItem.id),
+                              ),
+                            ),
+                          if (isItemCompleted || isItemMissing || isItemMismatch)
+                            const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonal(
+                              style: FilledButton.styleFrom(
                                 visualDensity: VisualDensity.compact,
                               ),
-                              icon: const Icon(Icons.folder_open_rounded, size: 16),
-                              label: Text(
-                                Platform.isMacOS
-                                    ? l10n.showInFinder
-                                    : l10n.showInFolder,
-                              ),
-                              onPressed: () => downloadProvider
-                                  .openContainingFolder(downloadItem.id),
+                              onPressed: onNavigateToDownloads,
+                              child: Text(l10n.viewManager),
                             ),
-                          FilledButton.tonal(
-                            style: FilledButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            onPressed: onNavigateToDownloads,
-                            child: Text(l10n.viewManager),
                           ),
                         ],
                       ),

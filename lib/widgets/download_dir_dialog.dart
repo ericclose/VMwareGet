@@ -36,6 +36,7 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
     final defaultPath = downloadProvider.defaultSystemDownloadDir;
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(
         children: [
@@ -114,7 +115,10 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 4,
                               children: [
                                 Text(
                                   l10n.systemDownloadsTitle,
@@ -122,7 +126,6 @@ class _DownloadDirDialogState extends State<DownloadDirDialog> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,

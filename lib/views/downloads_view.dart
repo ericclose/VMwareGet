@@ -103,40 +103,55 @@ class DownloadsView extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Download stats header
-          Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.activeRecentTransfers,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 460;
+              return Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            l10n.activeRecentTransfers,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        if (downloadProvider.activeCount > 0) ...[
+                          const SizedBox(width: 8),
+                          Badge(
+                            label: Text(
+                                l10n.activeCountBadge(downloadProvider.activeCount)),
+                            backgroundColor: colorScheme.primary,
+                          ),
+                        ],
+                      ],
                     ),
-                    if (downloadProvider.activeCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Badge(
-                        label: Text(l10n.activeCountBadge(downloadProvider.activeCount)),
-                        backgroundColor: colorScheme.primary,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (downloadProvider.completedCount > 0)
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
                   ),
-                  icon: const Icon(Icons.clear_all_rounded, size: 16),
-                  label: Text(l10n.clearCompletedDownloads),
-                  onPressed: () => downloadProvider.clearCompletedDownloads(),
-                ),
-            ],
+                  if (downloadProvider.completedCount > 0)
+                    isCompact
+                        ? IconButton(
+                            tooltip: l10n.clearCompletedDownloads,
+                            icon: const Icon(Icons.clear_all_rounded),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () =>
+                                downloadProvider.clearCompletedDownloads(),
+                          )
+                        : TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(Icons.clear_all_rounded, size: 16),
+                            label: Text(l10n.clearCompletedDownloads),
+                            onPressed: () =>
+                                downloadProvider.clearCompletedDownloads(),
+                          ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
 

@@ -367,244 +367,326 @@ class DownloadProgressTile extends StatelessWidget {
             const SizedBox(height: 8),
 
             // Action buttons
-            Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  if (isVerifying) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      label: Text(l10n.statusVerifying),
-                      onPressed: null,
-                    ),
-                  ] else if (item.status == DownloadStatus.completed) ...[
-                    if (isFileMissing) ...[
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: Text(l10n.reDownload),
-                        onPressed: () => downloadProvider.redownload(
-                          id: item.id,
-                          session: authSession,
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.folder_open_rounded, size: 16),
-                        label: Text(
-                          Platform.isMacOS
-                              ? l10n.showInFinder
-                              : l10n.showInFolder,
-                        ),
-                        onPressed: () =>
-                            downloadProvider.openContainingFolder(item.id),
-                      ),
-                    ] else if (isMismatch) ...[
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: Text(l10n.reDownload),
-                        onPressed: () => downloadProvider.redownload(
-                          id: item.id,
-                          session: authSession,
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: Text(l10n.reVerifyChecksum),
-                        onPressed: () =>
-                            downloadProvider.reVerifyChecksum(item.id),
-                      ),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.folder_open_rounded, size: 16),
-                        label: Text(
-                          Platform.isMacOS
-                              ? l10n.showInFinder
-                              : l10n.showInFolder,
-                        ),
-                        onPressed: () =>
-                            downloadProvider.openContainingFolder(item.id),
-                      ),
-                    ] else ...[
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.folder_open_rounded, size: 16),
-                        label: Text(
-                          Platform.isMacOS
-                              ? l10n.showInFinder
-                              : l10n.showInFolder,
-                        ),
-                        onPressed: () =>
-                            downloadProvider.openContainingFolder(item.id),
-                      ),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: Text(l10n.reVerifyChecksum),
-                        onPressed: () =>
-                            downloadProvider.reVerifyChecksum(item.id),
-                      ),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.launch_rounded, size: 16),
-                        label: Text(l10n.openInstaller),
-                        onPressed: () async {
-                          final opened = await downloadProvider
-                              .openDownloadedFile(item.id);
-                          if (!opened && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.fileNotFound),
-                                backgroundColor: colorScheme.error,
-                                behavior: SnackBarBehavior.floating,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 460;
+
+                final copyLinkButton = IconButton(
+                  tooltip: l10n.copyDirectDownloadLink,
+                  icon: const Icon(Icons.link_rounded, size: 20),
+                  onPressed: () async {
+                    final scaffold = ScaffoldMessenger.of(context);
+                    scaffold.hideCurrentSnackBar();
+                    scaffold.showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                            );
-                          }
-                        },
+                            ),
+                            const SizedBox(width: 10),
+                            Text(l10n.generatingDownloadLink),
+                          ],
+                        ),
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating,
                       ),
-                    ],
-                  ] else if (item.status == DownloadStatus.downloading) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.pause_rounded, size: 16),
-                      label: Text(l10n.pause),
-                      onPressed: () => downloadProvider.pauseDownload(item.id),
-                    ),
-                  ] else if (item.status == DownloadStatus.paused ||
-                      item.status == DownloadStatus.failed) ...[
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                      label: Text(l10n.resumeRetry),
-                      onPressed: () => downloadProvider.resumeDownload(
-                        id: item.id,
+                    );
+
+                    try {
+                      final url = await downloadProvider.resolveDownloadUrl(
+                        release: item.release,
                         session: authSession,
-                        sessionCookie: authSession?.cookieJar ??
-                            authSession?.sessionToken,
-                      ),
-                    ),
-                  ],
-                  IconButton(
-                    tooltip: l10n.copyDirectDownloadLink,
-                    icon: const Icon(Icons.link_rounded, size: 20),
-                    onPressed: () async {
-                      final scaffold = ScaffoldMessenger.of(context);
+                      );
+
+                      await Clipboard.setData(ClipboardData(text: url));
+
                       scaffold.hideCurrentSnackBar();
                       scaffold.showSnackBar(
                         SnackBar(
-                          content: Row(
-                            children: [
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(l10n.generatingDownloadLink),
-                            ],
-                          ),
-                          duration: const Duration(seconds: 4),
+                          content: Text(l10n.copyDirectDownloadLinkSuccess),
                           behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2),
                         ),
                       );
-
-                      try {
-                        final url = await downloadProvider.resolveDownloadUrl(
-                          release: item.release,
-                          session: authSession,
-                        );
-
-                        await Clipboard.setData(ClipboardData(text: url));
-
-                        scaffold.hideCurrentSnackBar();
+                    } on BroadcomAuthExpiredException catch (_) {
+                      scaffold.hideCurrentSnackBar();
+                      if (context.mounted) {
                         scaffold.showSnackBar(
                           SnackBar(
-                            content: Text(l10n.copyDirectDownloadLinkSuccess),
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      } on BroadcomAuthExpiredException catch (_) {
-                        scaffold.hideCurrentSnackBar();
-                        if (context.mounted) {
-                          scaffold.showSnackBar(
-                            SnackBar(
-                              backgroundColor: colorScheme.error,
-                              content: Text(l10n.broadcomSessionExpiredTip),
-                              action: SnackBarAction(
-                                label: l10n.reloginAction,
-                                textColor: Colors.amberAccent,
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => const LoginDialog(),
-                                  );
-                                },
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 6),
+                            backgroundColor: colorScheme.error,
+                            content: Text(l10n.broadcomSessionExpiredTip),
+                            action: SnackBarAction(
+                              label: l10n.reloginAction,
+                              textColor: Colors.amberAccent,
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const LoginDialog(),
+                                );
+                              },
                             ),
-                          );
-                        }
-                      } catch (e) {
-                        scaffold.hideCurrentSnackBar();
-                        scaffold.showSnackBar(
-                          SnackBar(
-                            content: Text('Failed: $e'),
                             behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 6),
                           ),
                         );
                       }
-                    },
-                  ),
-                  IconButton(
-                    tooltip: l10n.deleteRemove,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    onPressed: () {
-                      downloadProvider.deleteDownload(
-                        id: item.id,
-                        deleteLocalFile: false,
+                    } catch (e) {
+                      scaffold.hideCurrentSnackBar();
+                      scaffold.showSnackBar(
+                        SnackBar(
+                          content: Text('Failed: $e'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
-                    },
+                    }
+                  },
+                );
+
+                final deleteButton = IconButton(
+                  tooltip: l10n.deleteRemove,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  onPressed: () {
+                    downloadProvider.deleteDownload(
+                      id: item.id,
+                      deleteLocalFile: false,
+                    );
+                  },
+                );
+
+                final showInFolderButton = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
                   ),
-                ],
-              ),
+                  icon: const Icon(Icons.folder_open_rounded, size: 16),
+                  label: Text(
+                    Platform.isMacOS ? l10n.showInFinder : l10n.showInFolder,
+                  ),
+                  onPressed: () =>
+                      downloadProvider.openContainingFolder(item.id),
+                );
+
+                final reVerifyButton = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: Text(l10n.reVerifyChecksum),
+                  onPressed: () =>
+                      downloadProvider.reVerifyChecksum(item.id),
+                );
+
+                final reDownloadButton = FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: Text(l10n.reDownload),
+                  onPressed: () => downloadProvider.redownload(
+                    id: item.id,
+                    session: authSession,
+                  ),
+                );
+
+                final openInstallerButton = FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.launch_rounded, size: 16),
+                  label: Text(l10n.openInstaller),
+                  onPressed: () async {
+                    final opened =
+                        await downloadProvider.openDownloadedFile(item.id);
+                    if (!opened && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.fileNotFound),
+                          backgroundColor: colorScheme.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                );
+
+                final verifyingButton = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  label: Text(l10n.statusVerifying),
+                  onPressed: null,
+                );
+
+                final pauseButton = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.pause_rounded, size: 16),
+                  label: Text(l10n.pause),
+                  onPressed: () => downloadProvider.pauseDownload(item.id),
+                );
+
+                final resumeButton = FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                  label: Text(l10n.resumeRetry),
+                  onPressed: () => downloadProvider.resumeDownload(
+                    id: item.id,
+                    session: authSession,
+                    sessionCookie: authSession?.cookieJar ??
+                        authSession?.sessionToken,
+                  ),
+                );
+
+                if (isCompact) {
+                  if (isVerifying) {
+                    return Row(
+                      children: [
+                        Expanded(child: verifyingButton),
+                        const SizedBox(width: 4),
+                        copyLinkButton,
+                        deleteButton,
+                      ],
+                    );
+                  } else if (item.status == DownloadStatus.completed) {
+                    if (isFileMissing) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: showInFolderButton),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: reDownloadButton),
+                              const SizedBox(width: 4),
+                              copyLinkButton,
+                              deleteButton,
+                            ],
+                          ),
+                        ],
+                      );
+                    } else if (isMismatch) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: showInFolderButton),
+                              const SizedBox(width: 8),
+                              Expanded(child: reVerifyButton),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: reDownloadButton),
+                              const SizedBox(width: 4),
+                              copyLinkButton,
+                              deleteButton,
+                            ],
+                          ),
+                        ],
+                      );
+                    } else {
+                      // Normal completed
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: showInFolderButton),
+                              const SizedBox(width: 8),
+                              Expanded(child: reVerifyButton),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: openInstallerButton),
+                              const SizedBox(width: 4),
+                              copyLinkButton,
+                              deleteButton,
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+                  } else if (item.status == DownloadStatus.downloading) {
+                    return Row(
+                      children: [
+                        Expanded(child: pauseButton),
+                        const SizedBox(width: 4),
+                        copyLinkButton,
+                        deleteButton,
+                      ],
+                    );
+                  } else if (item.status == DownloadStatus.paused ||
+                      item.status == DownloadStatus.failed) {
+                    return Row(
+                      children: [
+                        Expanded(child: resumeButton),
+                        const SizedBox(width: 4),
+                        copyLinkButton,
+                        deleteButton,
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      copyLinkButton,
+                      deleteButton,
+                    ],
+                  );
+                }
+
+                return Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (isVerifying)
+                        verifyingButton
+                      else if (item.status == DownloadStatus.completed) ...[
+                        if (isFileMissing) ...[
+                          reDownloadButton,
+                          showInFolderButton,
+                        ] else if (isMismatch) ...[
+                          reDownloadButton,
+                          reVerifyButton,
+                          showInFolderButton,
+                        ] else ...[
+                          showInFolderButton,
+                          reVerifyButton,
+                          openInstallerButton,
+                        ],
+                      ] else if (item.status == DownloadStatus.downloading)
+                        pauseButton
+                      else if (item.status == DownloadStatus.paused ||
+                          item.status == DownloadStatus.failed)
+                        resumeButton,
+                      copyLinkButton,
+                      deleteButton,
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
